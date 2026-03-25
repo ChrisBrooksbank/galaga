@@ -24,7 +24,7 @@ use player::{
     handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
     RespawnTimer,
 };
-use resources::ScoreBoard;
+use resources::{Formation, ScoreBoard};
 use states::GameState;
 
 fn main() {
@@ -42,6 +42,7 @@ fn main() {
         .add_plugins(AudioPlugin)
         .init_state::<GameState>()
         .init_resource::<ScoreBoard>()
+        .init_resource::<Formation>()
         .init_resource::<RespawnTimer>()
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
