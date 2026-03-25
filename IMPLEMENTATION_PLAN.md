@@ -42,7 +42,7 @@
 - [x] Collision system: enemy body vs player during dive — trigger player death (spec: core-gameplay.md)
 
 ### Phase 6: Scoring & Lives
-- [ ] ScoreBoard resource: score, high score, lives (3), stage; scoring constants per enemy type and state (diving vs formation) (spec: core-gameplay.md)
+- [x] ScoreBoard resource: score, high score, lives (3), stage; scoring constants per enemy type and state (diving vs formation) (spec: core-gameplay.md)
 - [ ] Score event handler: apply correct points (Bee 50/100, Butterfly 80/160, Boss 150/400 formation; Boss 800/1600 diving) (spec: core-gameplay.md)
 - [ ] Extra life system: award extra life at 20,000 points, then every 70,000 after that (spec: core-gameplay.md)
 - [ ] Stage progression: advance stage when all enemies destroyed; increase difficulty params (spec: core-gameplay.md)
