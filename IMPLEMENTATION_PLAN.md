@@ -37,7 +37,7 @@
 - [x] Enemy entry animation system: enemies enter in single-file lines from screen edges, follow curved path to formation slot (spec: core-gameplay.md)
 
 ### Phase 5: Collision Detection
-- [ ] AABB collision system: bullet vs enemy — destroy both, emit ScoreEvent, spawn explosion (spec: core-gameplay.md)
+- [x] AABB collision system: bullet vs enemy — destroy both, emit ScoreEvent, spawn explosion (spec: core-gameplay.md)
 - [ ] AABB collision system: enemy/bullet vs player — trigger player death, spawn explosion (spec: core-gameplay.md)
 - [ ] Collision system: enemy body vs player during dive — trigger player death (spec: core-gameplay.md)
 
