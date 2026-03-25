@@ -138,3 +138,26 @@ pub struct DualFighterState {
     pub active: bool,
     pub captured_ship: Option<Entity>,
 }
+
+/// Coordinates timed group dive attacks for Bee and Butterfly squads.
+///
+/// A group attack launches 1–4 enemies of the same type simultaneously,
+/// creating the classic Galaga wave-attack feel.  The coordinator runs on its
+/// own timer so it is independent of the per-frame `dive_decision_system`.
+#[derive(Resource)]
+pub struct GroupAttackCoordinator {
+    /// Countdown until the next group attack is triggered.
+    pub timer: Timer,
+    /// How many enemies to send in the next wave (1 = solo, 2 = pair, 3–4 = group).
+    pub next_attack_size: usize,
+}
+
+impl Default for GroupAttackCoordinator {
+    fn default() -> Self {
+        Self {
+            // First attack after a short delay to let formation settle.
+            timer: Timer::from_seconds(3.0, TimerMode::Once),
+            next_attack_size: 2,
+        }
+    }
+}

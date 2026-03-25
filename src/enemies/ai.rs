@@ -14,6 +14,7 @@
 //     formation by reverting state to InFormation and removing dive components.
 
 use bevy::prelude::*;
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 use crate::assets::GameAssets;
@@ -23,7 +24,7 @@ use crate::components::{
 };
 use crate::constants::ENEMY_BULLET_SPEED;
 use crate::enemies::dive_paths::get_dive_path;
-use crate::resources::DifficultyConfig;
+use crate::resources::{DifficultyConfig, GroupAttackCoordinator};
 
 // ── Dive movement ─────────────────────────────────────────────────────────────
 
@@ -151,6 +152,133 @@ pub fn dive_completion_system(
                 .remove::<EnemyFireCooldown>();
         }
     }
+}
+
+// ── Group attack coordinator ──────────────────────────────────────────────────
+
+/// Launch a timed group of Bees or Butterflies in a coordinated dive attack.
+///
+/// Runs on its own `GroupAttackCoordinator` timer (independent of the
+/// per-frame `dive_decision_system`) so that genuine wave-formations of 2–4
+/// enemies can dive simultaneously.
+///
+/// Rules:
+/// - Respects `DifficultyConfig::max_concurrent_divers`; if the cap leaves no
+///   room the timer resets and we try again shortly.
+/// - Group sizes: 1 (solo), 2 (pair), 3 or 4 (full group).
+/// - Bee groups are preferred (60 % chance); Butterflies dive at most in pairs.
+/// - Six-Bee threshold: when ≤ 6 Bees remain the attack size is capped at 1
+///   so the few remaining Bees are sent one at a time in rapid succession
+///   (they do not return to formation at this point, handled by a shorter
+///   inter-attack delay).
+pub fn group_attack_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    difficulty: Res<DifficultyConfig>,
+    mut coordinator: ResMut<GroupAttackCoordinator>,
+    query: Query<(Entity, &EnemyState, &EnemyType, &FormationSlot)>,
+) {
+    coordinator.timer.tick(time.delta());
+    if !coordinator.timer.just_finished() {
+        return;
+    }
+
+    let mut rng = rand::thread_rng();
+
+    // Count how many enemies are already diving.
+    let current_divers = query
+        .iter()
+        .filter(|(_, s, _, _)| **s == EnemyState::Diving)
+        .count() as u32;
+
+    let slots_available =
+        difficulty.max_concurrent_divers.saturating_sub(current_divers) as usize;
+
+    if slots_available == 0 {
+        // Cap reached — wait a moment and retry.
+        coordinator.timer = Timer::from_seconds(1.0, TimerMode::Once);
+        return;
+    }
+
+    // Collect InFormation candidates by type.
+    let mut bee_candidates: Vec<(Entity, Vec2)> = query
+        .iter()
+        .filter(|(_, s, et, _)| **s == EnemyState::InFormation && **et == EnemyType::Bee)
+        .map(|(e, _, _, slot)| (e, slot.home_pos))
+        .collect();
+
+    let mut butterfly_candidates: Vec<(Entity, Vec2)> = query
+        .iter()
+        .filter(|(_, s, et, _)| {
+            **s == EnemyState::InFormation && **et == EnemyType::Butterfly
+        })
+        .map(|(e, _, _, slot)| (e, slot.home_pos))
+        .collect();
+
+    if bee_candidates.is_empty() && butterfly_candidates.is_empty() {
+        schedule_next(&mut coordinator, &mut rng, false);
+        return;
+    }
+
+    // Six-Bee threshold: ≤ 6 remaining Bees → force solo, rapid sends.
+    let six_bee_mode = bee_candidates.len() <= 6 && !bee_candidates.is_empty();
+
+    // Decide attack type: 60 % Bees, 40 % Butterflies (weighted by availability).
+    let use_bees = if bee_candidates.is_empty() {
+        false
+    } else if butterfly_candidates.is_empty() {
+        true
+    } else {
+        rng.gen_bool(0.6)
+    };
+
+    let (enemy_type, candidates) = if use_bees {
+        bee_candidates.shuffle(&mut rng);
+        (EnemyType::Bee, &mut bee_candidates)
+    } else {
+        butterfly_candidates.shuffle(&mut rng);
+        (EnemyType::Butterfly, &mut butterfly_candidates)
+    };
+
+    // Determine how many to send.
+    let max_for_type = if enemy_type == EnemyType::Butterfly { 2 } else { 4 };
+    let raw_size = if six_bee_mode {
+        1 // send one at a time when almost out of Bees
+    } else {
+        coordinator.next_attack_size
+    };
+    let send_count = raw_size.min(max_for_type).min(slots_available).min(candidates.len());
+
+    for (entity, home_pos) in candidates.iter().take(send_count).copied() {
+        let path = get_dive_path(enemy_type, home_pos);
+        let fire_timer =
+            Timer::from_seconds(difficulty.fire_interval, TimerMode::Repeating);
+        commands
+            .entity(entity)
+            .insert(DivePath(path))
+            .insert(DivePathProgress { current_waypoint: 1 })
+            .insert(EnemyFireCooldown(fire_timer))
+            .insert(EnemyState::Diving);
+    }
+
+    schedule_next(&mut coordinator, &mut rng, six_bee_mode);
+}
+
+/// Reset the coordinator timer and pick the next attack size.
+fn schedule_next(coordinator: &mut GroupAttackCoordinator, rng: &mut impl Rng, rapid: bool) {
+    // Rapid (six-bee) mode: short 1-2 s intervals for dramatic end-game feel.
+    let interval = if rapid {
+        rng.gen_range(1.0_f32..2.5)
+    } else {
+        rng.gen_range(3.0_f32..8.0)
+    };
+    coordinator.timer = Timer::from_seconds(interval, TimerMode::Once);
+    coordinator.next_attack_size = match rng.gen_range(0u32..6) {
+        0 => 1,       // solo  (1/6)
+        1 | 2 => 2,   // pair  (2/6)
+        3 | 4 => 3,   // group (2/6)
+        _ => 4,       // full  (1/6)
+    };
 }
 
 // ── Enemy firing ───────────────────────────────────────────────────────────────
