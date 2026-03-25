@@ -20,6 +20,7 @@ pub mod waves;
 
 use assets::GameAssets;
 use constants::PLAYER_START_LIVES;
+use enemies::spawn::spawn_formation;
 use player::{
     handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
     RespawnTimer,
@@ -51,8 +52,11 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .add_systems(Startup, setup_camera)
-        // Reset game state and spawn player when entering Playing
-        .add_systems(OnEnter(GameState::Playing), (init_scoreboard, spawn_player).chain())
+        // Reset game state, spawn player and formation when entering Playing
+        .add_systems(
+            OnEnter(GameState::Playing),
+            (init_scoreboard, spawn_player, spawn_formation).chain(),
+        )
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
         // Playing → Paused on Escape
