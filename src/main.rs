@@ -33,10 +33,13 @@ use player::{
     dual_fighter_follow, handle_player_death, manage_dual_fighter, move_bullets, player_movement,
     player_shoot, spawn_player, tick_respawn, RespawnTimer,
 };
-use resources::{DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
+use resources::{ChallengingStageData, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
 use states::GameState;
-use waves::{check_stage_complete, tick_stage_transition, StageClearTimer};
+use waves::{
+    challenging_stage_completion, check_stage_complete, enter_challenging_stage,
+    tick_stage_transition, StageClearTimer,
+};
 
 fn main() {
     App::new()
@@ -61,6 +64,7 @@ fn main() {
         .init_resource::<StageClearTimer>()
         .init_resource::<TractorBeamCoordinator>()
         .init_resource::<DualFighterState>()
+        .init_resource::<ChallengingStageData>()
         .add_observer(handle_score_event)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
@@ -157,6 +161,15 @@ fn main() {
                 .chain()
                 .run_if(in_state(GameState::Playing)),
         )
+        // Challenging stage: initialise on entry, check for completion each frame
+        .add_systems(
+            OnEnter(GameState::ChallengingStage),
+            enter_challenging_stage,
+        )
+        .add_systems(
+            Update,
+            challenging_stage_completion.run_if(in_state(GameState::ChallengingStage)),
+        )
         .run();
 }
 
@@ -194,12 +207,14 @@ fn reset_wave_state(
     mut group_coordinator: ResMut<GroupAttackCoordinator>,
     mut tractor_beam: ResMut<TractorBeamCoordinator>,
     mut dual_fighter: ResMut<DualFighterState>,
+    mut challenging_stage_data: ResMut<ChallengingStageData>,
 ) {
     *wave_controller = WaveController::default();
     *stage_clear_timer = StageClearTimer::default();
     *group_coordinator = GroupAttackCoordinator::default();
     *tractor_beam = TractorBeamCoordinator::default();
     *dual_fighter = DualFighterState::default();
+    *challenging_stage_data = ChallengingStageData::default();
     waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 

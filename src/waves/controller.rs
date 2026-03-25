@@ -4,6 +4,8 @@ use crate::assets::GameAssets;
 use crate::components::EnemyType;
 use crate::enemies::spawn::do_spawn_formation;
 use crate::resources::{DifficultyConfig, Formation, ScoreBoard, WaveController};
+use crate::states::GameState;
+use crate::waves::challenging::is_challenging_stage;
 use crate::waves::difficulty::update_difficulty_for_stage;
 
 const STAGE_CLEAR_DELAY_SECS: f32 = 2.0;
@@ -44,6 +46,7 @@ pub fn tick_stage_transition(
     mut formation: ResMut<Formation>,
     mut difficulty: ResMut<DifficultyConfig>,
     mut wave_controller: ResMut<WaveController>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     let Some(ref mut timer) = stage_clear_timer.0 else {
         return;
@@ -60,10 +63,21 @@ pub fn tick_stage_transition(
     // Apply formula-driven difficulty scaling for the new stage.
     update_difficulty_for_stage(&mut difficulty, score_board.current_stage);
 
-    // Reset the formation grid (enemy entities are already despawned by the collision system).
-    *formation = Formation::new();
+    if is_challenging_stage(score_board.current_stage) {
+        // Transition to the challenging stage — no formation is spawned here.
+        // The challenging stage systems handle enemy patterns and completion.
+        next_state.set(GameState::ChallengingStage);
+    } else {
+        // Reset the formation grid (enemy entities are already despawned by the collision system).
+        *formation = Formation::new();
 
-    // Spawn the next wave of enemies.
-    do_spawn_formation(&mut commands, &mut formation, &game_assets, score_board.current_stage);
-    wave_controller.enemies_ever_spawned = true;
+        // Spawn the next wave of enemies.
+        do_spawn_formation(
+            &mut commands,
+            &mut formation,
+            &game_assets,
+            score_board.current_stage,
+        );
+        wave_controller.enemies_ever_spawned = true;
+    }
 }

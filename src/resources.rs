@@ -169,6 +169,18 @@ impl Default for TractorBeamCoordinator {
     }
 }
 
+/// Tracks state for the current challenging stage.
+#[derive(Resource, Default)]
+pub struct ChallengingStageData {
+    /// True once all challenging-stage enemies have been launched on their paths.
+    /// Set by the challenging-stage spawning system (Phase 9).
+    pub spawning_done: bool,
+    /// Number of enemies destroyed during this challenging stage.
+    pub enemies_killed: u32,
+    /// Total enemies for this challenging stage (always 40).
+    pub total_enemies: u32,
+}
+
 /// Coordinates timed group dive attacks for Bee and Butterfly squads.
 ///
 /// A group attack launches 1–4 enemies of the same type simultaneously,

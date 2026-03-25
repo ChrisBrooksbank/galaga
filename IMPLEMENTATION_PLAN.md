@@ -3,7 +3,7 @@
 ## Status
 
 - Planning iterations: 1
-- Build iterations: 4
+- Build iterations: 5
 - Last updated: 2026-03-25
 
 ## Tasks
@@ -65,7 +65,7 @@
 - [x] Dual fighter death: losing dual fighter reverts to single ship (spec: enemy-ai.md)
 
 ### Phase 9: Challenging Stages & Splitters
-- [ ] Challenging stage trigger: stages 3, 7, 11, 15, ... spawn challenging stage (no formation, enemies fly fixed patterns) (spec: enemy-ai.md)
+- [x] Challenging stage trigger: stages 3, 7, 11, 15, ... spawn challenging stage (no formation, enemies fly fixed patterns) (spec: enemy-ai.md)
 - [ ] Challenging stage enemy patterns: straight lines, figure-8s, loop patterns across screen (spec: enemy-ai.md)
 - [ ] Perfect bonus: award 10,000 points if all challenging-stage enemies destroyed (spec: enemy-ai.md)
 - [ ] Splitter/transform enemies: starting stage 4, some enemies split into 2 on death (Scorpions/Stingrays) or become Galaxian Flagship (spec: enemy-ai.md)
