@@ -19,6 +19,7 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
+use player::spawn_player;
 use states::GameState;
 
 fn main() {
@@ -42,6 +43,8 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .add_systems(Startup, setup_camera)
+        // Spawn player when entering Playing state
+        .add_systems(OnEnter(GameState::Playing), spawn_player)
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
         // Playing → Paused on Escape

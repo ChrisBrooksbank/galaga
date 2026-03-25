@@ -23,7 +23,7 @@
 - [x] Implement bevy_asset_loader LoadingState: define GameAssets resource with TextureAtlasLayout, SFX handles, music handles, font handle (spec: visual-polish.md)
 
 ### Phase 3: Player Ship
-- [ ] Spawn player entity with sprite, Player component, Transform at bottom-center (spec: core-gameplay.md)
+- [x] Spawn player entity with sprite, Player component, Transform at bottom-center (spec: core-gameplay.md)
 - [ ] Player horizontal movement system: keyboard left/right, clamped to screen bounds, speed from config (spec: core-gameplay.md)
 - [ ] Player shoot system: Space key fires bullet, max 2 simultaneous bullets on screen (spec: core-gameplay.md)
 - [ ] Bullet movement system: bullets travel upward, despawn at top of screen (spec: core-gameplay.md)
