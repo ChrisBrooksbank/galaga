@@ -15,7 +15,7 @@
 - [x] Set up module structure: player/, enemies/, waves/, collision/, scoring/, effects/, ui/, audio/ (spec: core-gameplay.md)
 
 ### Phase 2: Asset Pipeline
-- [ ] Create assets/ directory structure: sprites/, sounds/, music/, fonts/ (spec: visual-polish.md)
+- [x] Create assets/ directory structure: sprites/, sounds/, music/, fonts/ (spec: visual-polish.md)
 - [ ] Download Kenney Space Shooter Redux sprites; create/export 128x64 sprite atlas with enemies, explosions, beam frames (spec: visual-polish.md)
 - [ ] Download Press Start 2P font (OFL license) to assets/fonts/ (spec: visual-polish.md)
 - [ ] Download Kenney Sci-Fi / Impact / UI / Digital audio packs; place SFX in assets/sounds/ (spec: audio.md)
