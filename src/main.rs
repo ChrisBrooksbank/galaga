@@ -1,6 +1,8 @@
 use bevy::camera::ScalingMode;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use bevy_asset_loader::prelude::*;
+use bevy_kira_audio::prelude::*;
 
 pub mod assets;
 pub mod audio;
@@ -16,6 +18,7 @@ pub mod states;
 pub mod ui;
 pub mod waves;
 
+use assets::GameAssets;
 use states::GameState;
 
 fn main() {
@@ -30,10 +33,15 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(AudioPlugin)
         .init_state::<GameState>()
+        // Asset loading: transition Loading → Menu automatically when all assets are ready
+        .add_loading_state(
+            LoadingState::new(GameState::Loading)
+                .continue_to_state(GameState::Menu)
+                .load_collection::<GameAssets>(),
+        )
         .add_systems(Startup, setup_camera)
-        // Loading → Menu immediately (no assets yet)
-        .add_systems(Update, loading_to_menu.run_if(in_state(GameState::Loading)))
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
         // Playing → Paused on Escape
@@ -51,10 +59,6 @@ fn setup_camera(mut commands: Commands) {
             ..OrthographicProjection::default_2d()
         }),
     ));
-}
-
-fn loading_to_menu(mut next_state: ResMut<NextState<GameState>>) {
-    next_state.set(GameState::Menu);
 }
 
 fn menu_to_playing(

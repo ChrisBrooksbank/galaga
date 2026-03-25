@@ -20,7 +20,7 @@
 - [x] Download Press Start 2P font (OFL license) to assets/fonts/ (spec: visual-polish.md)
 - [x] Download Kenney Sci-Fi / Impact / UI / Digital audio packs; place SFX in assets/sounds/ (spec: audio.md)
 - [x] Compose 7 BeepBox chiptune tracks (menu, stage-intro, gameplay, challenging, boss-capture, game-over, high-score) and export to assets/music/ (spec: audio.md)
-- [ ] Implement bevy_asset_loader LoadingState: define GameAssets resource with TextureAtlasLayout, SFX handles, music handles, font handle (spec: visual-polish.md)
+- [x] Implement bevy_asset_loader LoadingState: define GameAssets resource with TextureAtlasLayout, SFX handles, music handles, font handle (spec: visual-polish.md)
 
 ### Phase 3: Player Ship
 - [ ] Spawn player entity with sprite, Player component, Transform at bottom-center (spec: core-gameplay.md)
