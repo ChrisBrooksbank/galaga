@@ -2,16 +2,21 @@ use bevy::camera::ScalingMode;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub enum GameState {
-    #[default]
-    Loading,
-    Menu,
-    Playing,
-    Paused,
-    GameOver,
-    ChallengingStage,
-}
+pub mod assets;
+pub mod audio;
+pub mod collision;
+pub mod components;
+pub mod constants;
+pub mod effects;
+pub mod enemies;
+pub mod player;
+pub mod resources;
+pub mod scoring;
+pub mod states;
+pub mod ui;
+pub mod waves;
+
+use states::GameState;
 
 fn main() {
     App::new()
