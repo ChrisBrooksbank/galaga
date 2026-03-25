@@ -139,6 +139,36 @@ pub struct DualFighterState {
     pub captured_ship: Option<Entity>,
 }
 
+/// Manages the timing and active state of the Boss Galaga tractor beam.
+///
+/// The system checks preconditions every `CHECK_INTERVAL` seconds.  A run
+/// begins when all three are satisfied: 2+ Bosses in formation, no player
+/// bullet in flight, and a probabilistic roll passes.
+#[derive(Resource)]
+pub struct TractorBeamCoordinator {
+    /// Countdown until the next eligibility check.
+    pub timer: Timer,
+    /// True while a tractor beam run is in progress (blocks new runs).
+    pub active: bool,
+}
+
+impl TractorBeamCoordinator {
+    /// Seconds between eligibility checks.
+    pub const CHECK_INTERVAL: f32 = 5.0;
+    /// Chance (0–1) that a run begins when all preconditions are met.
+    pub const TRIGGER_PROBABILITY: f32 = 0.35;
+}
+
+impl Default for TractorBeamCoordinator {
+    fn default() -> Self {
+        Self {
+            // First check after 10 s so the formation has time to settle.
+            timer: Timer::from_seconds(10.0, TimerMode::Once),
+            active: false,
+        }
+    }
+}
+
 /// Coordinates timed group dive attacks for Bee and Butterfly squads.
 ///
 /// A group attack launches 1–4 enemies of the same type simultaneously,

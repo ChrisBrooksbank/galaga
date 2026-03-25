@@ -145,6 +145,17 @@ pub struct DivePathProgress {
 #[derive(Component)]
 pub struct EnemyFireCooldown(pub Timer);
 
+// --- Tractor beam ---
+
+/// Marker for a Boss Galaga executing a tractor-beam run.
+///
+/// The boss follows a one-way `DivePath` to the mid-screen stop point
+/// (y ≈ −48) rather than a closed-loop dive.  `dive_completion_system`
+/// skips entities with this marker so the boss stays at the stop point
+/// until the tractor-beam sequence completes.
+#[derive(Component)]
+pub struct TractorBeamRun;
+
 // --- Animation ---
 
 #[derive(Component)]
