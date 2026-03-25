@@ -18,7 +18,7 @@
 - [x] Create assets/ directory structure: sprites/, sounds/, music/, fonts/ (spec: visual-polish.md)
 - [x] Download Kenney Space Shooter Redux sprites; create/export 128x64 sprite atlas with enemies, explosions, beam frames (spec: visual-polish.md)
 - [x] Download Press Start 2P font (OFL license) to assets/fonts/ (spec: visual-polish.md)
-- [ ] Download Kenney Sci-Fi / Impact / UI / Digital audio packs; place SFX in assets/sounds/ (spec: audio.md)
+- [x] Download Kenney Sci-Fi / Impact / UI / Digital audio packs; place SFX in assets/sounds/ (spec: audio.md)
 - [ ] Compose 7 BeepBox chiptune tracks (menu, stage-intro, gameplay, challenging, boss-capture, game-over, high-score) and export to assets/music/ (spec: audio.md)
 - [ ] Implement bevy_asset_loader LoadingState: define GameAssets resource with TextureAtlasLayout, SFX handles, music handles, font handle (spec: visual-polish.md)
 
