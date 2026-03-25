@@ -19,7 +19,7 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
-use player::spawn_player;
+use player::{player_movement, spawn_player};
 use states::GameState;
 
 fn main() {
@@ -51,6 +51,8 @@ fn main() {
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         // Paused → Playing on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Paused)))
+        // Player systems (only while Playing)
+        .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .run();
 }
 

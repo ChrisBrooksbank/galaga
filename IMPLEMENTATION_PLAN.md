@@ -24,7 +24,7 @@
 
 ### Phase 3: Player Ship
 - [x] Spawn player entity with sprite, Player component, Transform at bottom-center (spec: core-gameplay.md)
-- [ ] Player horizontal movement system: keyboard left/right, clamped to screen bounds, speed from config (spec: core-gameplay.md)
+- [x] Player horizontal movement system: keyboard left/right, clamped to screen bounds, speed from config (spec: core-gameplay.md)
 - [ ] Player shoot system: Space key fires bullet, max 2 simultaneous bullets on screen (spec: core-gameplay.md)
 - [ ] Bullet movement system: bullets travel upward, despawn at top of screen (spec: core-gameplay.md)
 - [ ] Player death + respawn system: remove entity, show explosion, decrement lives, respawn if lives > 0 (spec: core-gameplay.md)
