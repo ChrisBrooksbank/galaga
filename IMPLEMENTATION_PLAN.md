@@ -49,7 +49,7 @@
 - [x] DifficultyConfig resource with formula-driven scaling per stage (enemy speed, fire rate, dive probability, concurrent attackers) (spec: enemy-ai.md)
 
 ### Phase 7: Enemy AI — Dive System
-- [ ] Define predefined waypoint dive paths as Bezier curves / waypoint arrays for each enemy type and side (spec: enemy-ai.md)
+- [x] Define predefined waypoint dive paths as Bezier curves / waypoint arrays for each enemy type and side (spec: enemy-ai.md)
 - [ ] Dive state machine: Idle → Diving → Returning; select random dive path on enter (spec: enemy-ai.md)
 - [ ] Dive movement system: move enemy along waypoints, return to formation slot when done (spec: enemy-ai.md)
 - [ ] Enemy firing system: enemies fire during dives at difficulty-scaled intervals; bullets travel downward (spec: enemy-ai.md)
