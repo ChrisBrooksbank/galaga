@@ -3,7 +3,7 @@
 ## Status
 
 - Planning iterations: 1
-- Build iterations: 2
+- Build iterations: 3
 - Last updated: 2026-03-25
 
 ## Tasks
@@ -16,7 +16,7 @@
 
 ### Phase 2: Asset Pipeline
 - [x] Create assets/ directory structure: sprites/, sounds/, music/, fonts/ (spec: visual-polish.md)
-- [ ] Download Kenney Space Shooter Redux sprites; create/export 128x64 sprite atlas with enemies, explosions, beam frames (spec: visual-polish.md)
+- [x] Download Kenney Space Shooter Redux sprites; create/export 128x64 sprite atlas with enemies, explosions, beam frames (spec: visual-polish.md)
 - [ ] Download Press Start 2P font (OFL license) to assets/fonts/ (spec: visual-polish.md)
 - [ ] Download Kenney Sci-Fi / Impact / UI / Digital audio packs; place SFX in assets/sounds/ (spec: audio.md)
 - [ ] Compose 7 BeepBox chiptune tracks (menu, stage-intro, gameplay, challenging, boss-capture, game-over, high-score) and export to assets/music/ (spec: audio.md)
