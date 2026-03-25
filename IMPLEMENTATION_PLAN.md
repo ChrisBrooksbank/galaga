@@ -46,7 +46,7 @@
 - [x] Score event handler: apply correct points (Bee 50/100, Butterfly 80/160, Boss 150/400 formation; Boss 800/1600 diving) (spec: core-gameplay.md)
 - [x] Extra life system: award extra life at 20,000 points, then every 70,000 after that (spec: core-gameplay.md)
 - [x] Stage progression: advance stage when all enemies destroyed; increase difficulty params (spec: core-gameplay.md)
-- [ ] DifficultyConfig resource with formula-driven scaling per stage (enemy speed, fire rate, dive probability, concurrent attackers) (spec: enemy-ai.md)
+- [x] DifficultyConfig resource with formula-driven scaling per stage (enemy speed, fire rate, dive probability, concurrent attackers) (spec: enemy-ai.md)
 
 ### Phase 7: Enemy AI — Dive System
 - [ ] Define predefined waypoint dive paths as Bezier curves / waypoint arrays for each enemy type and side (spec: enemy-ai.md)
