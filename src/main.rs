@@ -24,6 +24,9 @@ use collision::{
     diving_enemy_dual_fighter_collision, diving_enemy_player_collision,
     enemy_bullet_dual_fighter_collision, enemy_bullet_player_collision,
 };
+use enemies::splitters::{
+    bullet_splitter_piece_collision, handle_splitter_bee_killed, move_splitter_pieces,
+};
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system, enemy_fire_system, group_attack_system};
 use enemies::tractor_beam::{boss_tractor_decision, player_capture_system, pulse_tractor_beam_system, spawn_tractor_beam_system};
@@ -34,7 +37,7 @@ use player::{
     dual_fighter_follow, handle_player_death, manage_dual_fighter, move_bullets, player_movement,
     player_shoot, spawn_player, tick_respawn, RespawnTimer,
 };
-use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
+use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, SplitterState, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
 use states::GameState;
 use waves::{
@@ -68,7 +71,9 @@ fn main() {
         .init_resource::<DualFighterState>()
         .init_resource::<ChallengingStageData>()
         .init_resource::<ChallengingStageSpawner>()
+        .init_resource::<SplitterState>()
         .add_observer(handle_score_event)
+        .add_observer(handle_splitter_bee_killed)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
             LoadingState::new(GameState::Loading)
@@ -105,12 +110,18 @@ fn main() {
             Update,
             (
                 bullet_enemy_collision,
+                bullet_splitter_piece_collision,
                 enemy_bullet_player_collision,
                 diving_enemy_player_collision,
                 enemy_bullet_dual_fighter_collision,
                 diving_enemy_dual_fighter_collision,
             )
                 .run_if(in_state(GameState::Playing)),
+        )
+        // Splitter piece movement (only while Playing)
+        .add_systems(
+            Update,
+            move_splitter_pieces.run_if(in_state(GameState::Playing)),
         )
         // Player death and respawn (only while Playing)
         .add_systems(
@@ -220,6 +231,7 @@ fn reset_wave_state(
     mut dual_fighter: ResMut<DualFighterState>,
     mut challenging_stage_data: ResMut<ChallengingStageData>,
     mut challenging_spawner: ResMut<ChallengingStageSpawner>,
+    mut splitter_state: ResMut<SplitterState>,
 ) {
     *wave_controller = WaveController::default();
     *stage_clear_timer = StageClearTimer::default();
@@ -228,6 +240,7 @@ fn reset_wave_state(
     *dual_fighter = DualFighterState::default();
     *challenging_stage_data = ChallengingStageData::default();
     *challenging_spawner = ChallengingStageSpawner::default();
+    *splitter_state = SplitterState::default();
     waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 

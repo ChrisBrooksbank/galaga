@@ -210,6 +210,20 @@ impl Default for ChallengingStageSpawner {
     }
 }
 
+/// Tracks the state of splitter pieces during a stage.
+///
+/// When a SplitterBee is killed, 3 SplitterPiece entities are spawned.
+/// When all 3 are killed, a bonus is awarded.
+#[derive(Resource, Default)]
+pub struct SplitterState {
+    /// Number of SplitterPiece enemies currently alive (reset when SplitterBee is killed).
+    pub pieces_alive: u32,
+    /// Number of SplitterPiece enemies killed this stage.
+    pub pieces_killed: u32,
+    /// Whether the all-3-killed bonus has been awarded this stage.
+    pub bonus_awarded: bool,
+}
+
 /// Coordinates timed group dive attacks for Bee and Butterfly squads.
 ///
 /// A group attack launches 1–4 enemies of the same type simultaneously,

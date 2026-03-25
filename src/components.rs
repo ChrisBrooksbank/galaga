@@ -187,6 +187,27 @@ pub struct DualFighter;
 #[derive(Component)]
 pub struct AnimationTimer(pub Timer);
 
+// --- Splitter enemies ---
+
+/// Type of special enemy that appears when a SplitterBee is killed.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub enum SplitterType {
+    Scorpion,  // stages 4-6
+    Stingray,  // stages 8-10
+    Flagship,  // stages 12-14
+}
+
+/// Marker for a Bee designated to spawn SplitterPiece enemies when killed.
+#[derive(Component)]
+pub struct SplitterBee(pub SplitterType);
+
+/// Marker for a special enemy spawned when a SplitterBee is destroyed.
+#[derive(Component)]
+pub struct SplitterPiece {
+    pub splitter_type: SplitterType,
+    pub piece_index: u8,
+}
+
 // --- Challenging stage ---
 
 /// Path followed by a challenging-stage enemy.

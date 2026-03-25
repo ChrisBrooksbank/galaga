@@ -5,8 +5,10 @@ use bevy::prelude::*;
 use crate::components::{
     Bullet, BulletOwner, CapturedBy, CapturedShip, ChallengingFlightPath, Collider, DespawnTimer,
     DualFighter, Dying, EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
+    SplitterBee,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
+use crate::enemies::splitters::SplitterBeeKilled;
 use crate::resources::{ChallengingStageData, DualFighterState, Formation};
 use crate::scoring::ScoreEvent;
 
@@ -37,6 +39,7 @@ pub fn bullet_enemy_collision(
     mut formation: ResMut<Formation>,
     mut dual_fighter: ResMut<DualFighterState>,
     captured_query: Query<(Entity, &CapturedBy), With<CapturedShip>>,
+    splitter_bee_query: Query<&SplitterBee>,
 ) {
     // --- Pass 1: collect (bullet_entity, enemy_entity) hit pairs ---
     // Uses read-only iteration so the mutable borrow is free for pass 2.
@@ -106,6 +109,14 @@ pub fn bullet_enemy_collision(
             // Clear the formation grid slot.
             if formation.slots.get(idx) == Some(&Some(enemy_entity)) {
                 formation.slots[idx] = None;
+            }
+
+            // SplitterBee death: trigger the splitter sequence before despawning.
+            if let Ok(splitter_bee) = splitter_bee_query.get(enemy_entity) {
+                commands.trigger(SplitterBeeKilled {
+                    position: pos,
+                    splitter_type: splitter_bee.0,
+                });
             }
 
             commands.entity(enemy_entity).despawn();
