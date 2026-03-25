@@ -20,7 +20,7 @@ pub mod waves;
 
 use assets::GameAssets;
 use constants::PLAYER_START_LIVES;
-use enemies::formation::{apply_formation_breathing, update_formation_breathing};
+use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
 use player::{
     handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
@@ -80,6 +80,11 @@ fn main() {
             (update_formation_breathing, apply_formation_breathing)
                 .chain()
                 .run_if(in_state(GameState::Playing)),
+        )
+        // Enemy wing-flutter animation (only while Playing)
+        .add_systems(
+            Update,
+            animate_enemy_wings.run_if(in_state(GameState::Playing)),
         )
         .run();
 }

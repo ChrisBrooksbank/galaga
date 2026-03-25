@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::assets::{enemy_sprite_index, GameAssets};
-use crate::components::{Collider, EnemyState, EnemyType, FormationSlot, Health};
+use crate::components::{AnimationTimer, Collider, EnemyState, EnemyType, FormationSlot, Health};
 use crate::enemies::formation::{enemy_type_for_slot, slot_row_col};
 use crate::resources::Formation;
 
@@ -30,6 +30,14 @@ pub fn spawn_formation(
             EnemyType::Butterfly | EnemyType::Bee => 1,
         };
 
+        // Stagger the animation phase so enemies don't all flutter in sync.
+        // Each slot starts at a different elapsed offset (steps of ~37ms).
+        let flutter_period = 0.25_f32;
+        let phase_offset = (slot_index as f32 * 0.037) % flutter_period;
+        let mut anim_timer =
+            AnimationTimer(Timer::from_seconds(flutter_period, TimerMode::Repeating));
+        anim_timer.0.set_elapsed(std::time::Duration::from_secs_f32(phase_offset));
+
         let entity = commands
             .spawn((
                 Sprite::from_atlas_image(
@@ -45,6 +53,7 @@ pub fn spawn_formation(
                 FormationSlot { row, col, home_pos },
                 Health(health),
                 Collider { half_size: Vec2::splat(7.0) },
+                anim_timer,
             ))
             .id();
 

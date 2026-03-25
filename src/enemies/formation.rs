@@ -9,7 +9,7 @@
 
 use bevy::prelude::*;
 
-use crate::components::{EnemyState, EnemyType, FormationSlot};
+use crate::components::{AnimationTimer, EnemyState, EnemyType, FormationSlot};
 use crate::constants::FORMATION_BREATHING_FREQUENCY;
 use crate::resources::Formation;
 
@@ -91,6 +91,28 @@ pub fn apply_formation_breathing(
             let pos = formation.current_pos(idx);
             transform.translation.x = pos.x;
             transform.translation.y = pos.y;
+        }
+    }
+}
+
+/// Animate enemy wing flutter: toggle between 2 atlas frames per enemy.
+///
+/// Frame pairs are contiguous (differ only in the lowest bit), so XOR-ing the
+/// current index with 1 correctly cycles within each pair:
+///   Boss green:   0 ↔ 1  (BOSS_GREEN_1 / BOSS_GREEN_2)
+///   Boss purple:  2 ↔ 3  (BOSS_PURPLE_1 / BOSS_PURPLE_2)
+///   Butterfly:    4 ↔ 5
+///   Bee:          6 ↔ 7
+pub fn animate_enemy_wings(
+    time: Res<Time>,
+    mut query: Query<(&EnemyType, &mut AnimationTimer, &mut Sprite)>,
+) {
+    for (_enemy_type, mut anim_timer, mut sprite) in &mut query {
+        anim_timer.0.tick(time.delta());
+        if anim_timer.0.just_finished() {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index ^= 1;
+            }
         }
     }
 }
