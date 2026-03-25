@@ -181,6 +181,35 @@ pub struct ChallengingStageData {
     pub total_enemies: u32,
 }
 
+/// Controls the timed spawning of enemy groups during a challenging stage.
+///
+/// Enemies are launched in 5 groups of 8, one group every `GROUP_DELAY_SECS`.
+/// The resource is reset in `enter_challenging_stage`.
+#[derive(Resource)]
+pub struct ChallengingStageSpawner {
+    /// Index of the next group to spawn (0–4); 5 means all groups launched.
+    pub next_group: usize,
+    /// Countdown until the next group is launched.
+    pub timer: Timer,
+}
+
+impl ChallengingStageSpawner {
+    /// Seconds between consecutive group launches.
+    pub const GROUP_DELAY_SECS: f32 = 2.5;
+    /// Total number of groups (5 groups × 8 enemies = 40 total).
+    pub const GROUP_COUNT: usize = 5;
+}
+
+impl Default for ChallengingStageSpawner {
+    fn default() -> Self {
+        Self {
+            next_group: 0,
+            // First group spawns after a short lead-in.
+            timer: Timer::from_seconds(1.0, TimerMode::Once),
+        }
+    }
+}
+
 /// Coordinates timed group dive attacks for Bee and Butterfly squads.
 ///
 /// A group attack launches 1–4 enemies of the same type simultaneously,

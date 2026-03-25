@@ -20,7 +20,8 @@ pub mod waves;
 
 use assets::GameAssets;
 use collision::{
-    bullet_enemy_collision, diving_enemy_dual_fighter_collision, diving_enemy_player_collision,
+    bullet_challenging_enemy_collision, bullet_enemy_collision,
+    diving_enemy_dual_fighter_collision, diving_enemy_player_collision,
     enemy_bullet_dual_fighter_collision, enemy_bullet_player_collision,
 };
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
@@ -33,12 +34,13 @@ use player::{
     dual_fighter_follow, handle_player_death, manage_dual_fighter, move_bullets, player_movement,
     player_shoot, spawn_player, tick_respawn, RespawnTimer,
 };
-use resources::{ChallengingStageData, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
+use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
 use states::GameState;
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
-    tick_stage_transition, StageClearTimer,
+    move_challenging_enemies, spawn_challenging_stage_patterns, tick_stage_transition,
+    StageClearTimer,
 };
 
 fn main() {
@@ -65,6 +67,7 @@ fn main() {
         .init_resource::<TractorBeamCoordinator>()
         .init_resource::<DualFighterState>()
         .init_resource::<ChallengingStageData>()
+        .init_resource::<ChallengingStageSpawner>()
         .add_observer(handle_score_event)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
@@ -84,10 +87,11 @@ fn main() {
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         // Paused → Playing on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Paused)))
-        // Player movement and shooting (only while Playing)
+        // Player movement and shooting (Playing and ChallengingStage)
         .add_systems(
             Update,
-            (player_movement, player_shoot, move_bullets).run_if(in_state(GameState::Playing)),
+            (player_movement, player_shoot, move_bullets)
+                .run_if(in_state(GameState::Playing).or(in_state(GameState::ChallengingStage))),
         )
         // Dual fighter: manage secondary ship and keep it aligned with the player
         .add_systems(
@@ -161,14 +165,21 @@ fn main() {
                 .chain()
                 .run_if(in_state(GameState::Playing)),
         )
-        // Challenging stage: initialise on entry, check for completion each frame
+        // Challenging stage: initialise on entry, spawn patterns and check completion each frame
         .add_systems(
             OnEnter(GameState::ChallengingStage),
             enter_challenging_stage,
         )
         .add_systems(
             Update,
-            challenging_stage_completion.run_if(in_state(GameState::ChallengingStage)),
+            (
+                spawn_challenging_stage_patterns,
+                move_challenging_enemies,
+                bullet_challenging_enemy_collision,
+                challenging_stage_completion,
+            )
+                .chain()
+                .run_if(in_state(GameState::ChallengingStage)),
         )
         .run();
 }
@@ -208,6 +219,7 @@ fn reset_wave_state(
     mut tractor_beam: ResMut<TractorBeamCoordinator>,
     mut dual_fighter: ResMut<DualFighterState>,
     mut challenging_stage_data: ResMut<ChallengingStageData>,
+    mut challenging_spawner: ResMut<ChallengingStageSpawner>,
 ) {
     *wave_controller = WaveController::default();
     *stage_clear_timer = StageClearTimer::default();
@@ -215,6 +227,7 @@ fn reset_wave_state(
     *tractor_beam = TractorBeamCoordinator::default();
     *dual_fighter = DualFighterState::default();
     *challenging_stage_data = ChallengingStageData::default();
+    *challenging_spawner = ChallengingStageSpawner::default();
     waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 

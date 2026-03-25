@@ -186,3 +186,19 @@ pub struct DualFighter;
 
 #[derive(Component)]
 pub struct AnimationTimer(pub Timer);
+
+// --- Challenging stage ---
+
+/// Path followed by a challenging-stage enemy.
+///
+/// Enemies traverse the waypoints linearly (same as `EntryPath`) but are
+/// despawned when the last waypoint is reached instead of transitioning to
+/// `InFormation`.  They also never fire.
+#[derive(Component)]
+pub struct ChallengingFlightPath {
+    pub waypoints: Vec<Vec2>,
+    pub current_waypoint: usize,
+    pub speed: f32,
+    /// Seconds to wait before starting to move (stagger within a group).
+    pub delay_secs: f32,
+}

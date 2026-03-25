@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::components::{
-    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DespawnTimer, DualFighter, Dying,
-    EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
+    Bullet, BulletOwner, CapturedBy, CapturedShip, ChallengingFlightPath, Collider, DespawnTimer,
+    DualFighter, Dying, EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::resources::{DualFighterState, Formation};
@@ -220,6 +220,65 @@ pub fn enemy_bullet_dual_fighter_collision(
             commands.entity(dual_entity).despawn();
             dual_state.active = false;
             return;
+        }
+    }
+}
+
+/// Detect collisions between player bullets and challenging-stage enemies.
+///
+/// Challenging-stage enemies carry `ChallengingFlightPath` instead of
+/// `FormationSlot`, so the standard `bullet_enemy_collision` system won't
+/// reach them.  This system handles bullet→challenging-enemy hits only.
+///
+/// On hit:
+///   - Despawn the bullet.
+///   - Reduce enemy `Health` by 1.
+///   - If `Health` reaches 0: spawn explosion, trigger `ScoreEvent`
+///     (counted as diving = true), despawn enemy.
+pub fn bullet_challenging_enemy_collision(
+    mut commands: Commands,
+    bullet_query: Query<(Entity, &Transform, &Collider, &Bullet)>,
+    mut enemy_query: Query<
+        (Entity, &Transform, &Collider, &EnemyType, &mut Health),
+        With<ChallengingFlightPath>,
+    >,
+) {
+    let mut used_bullets: std::collections::HashSet<Entity> = std::collections::HashSet::new();
+
+    for (bullet_entity, b_tf, b_col, bullet) in &bullet_query {
+        if bullet.owner != BulletOwner::Player {
+            continue;
+        }
+        if used_bullets.contains(&bullet_entity) {
+            continue;
+        }
+
+        let b_pos = b_tf.translation.truncate();
+
+        for (enemy_entity, e_tf, e_col, enemy_type, mut health) in enemy_query.iter_mut() {
+            let e_pos = e_tf.translation.truncate();
+            if !aabb_overlaps(b_pos, b_col.half_size, e_pos, e_col.half_size) {
+                continue;
+            }
+
+            commands.entity(bullet_entity).despawn();
+            used_bullets.insert(bullet_entity);
+
+            health.0 = health.0.saturating_sub(1);
+            if health.0 == 0 {
+                commands.spawn((
+                    Explosion {
+                        frame: 0,
+                        timer: Timer::from_seconds(0.08, TimerMode::Repeating),
+                    },
+                    Transform::from_translation(e_tf.translation),
+                    DespawnTimer(Timer::from_seconds(0.5, TimerMode::Once)),
+                ));
+                // Challenging stage enemies are always considered "diving".
+                commands.trigger(ScoreEvent { enemy_type: *enemy_type, is_diving: true });
+                commands.entity(enemy_entity).despawn();
+            }
+            break;
         }
     }
 }
