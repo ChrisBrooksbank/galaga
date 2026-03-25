@@ -1,0 +1,17 @@
+[package]
+name = "galaga"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.18", features = ["default"] }
+bevy_rapier2d = { version = "0.33", features = ["simd-stable"] }
+bevy_kira_audio = "0.25"
+bevy_asset_loader = "0.25"
+rand = "0.8"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

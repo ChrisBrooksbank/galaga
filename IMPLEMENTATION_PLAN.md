@@ -3,15 +3,15 @@
 ## Status
 
 - Planning iterations: 1
-- Build iterations: 0
+- Build iterations: 2
 - Last updated: 2026-03-25
 
 ## Tasks
 
 ### Phase 1: Project Foundation
-- [ ] Initialize Rust project: `cargo new galaga`, add Bevy 0.18 + all deps to Cargo.toml (bevy_kira_audio, bevy_asset_loader, bevy_rapier2d) (spec: core-gameplay.md)
-- [ ] Configure Bevy app: 224x288 logical resolution, 2x pixel-perfect scaling, 60fps, window title "Galaga" (spec: core-gameplay.md)
-- [ ] Define GameState enum (Loading, Menu, Playing, Paused, GameOver, ChallengingStage) and wire state transitions (spec: core-gameplay.md)
+- [x] Initialize Rust project: `cargo new galaga`, add Bevy 0.18 + all deps to Cargo.toml (bevy_kira_audio, bevy_asset_loader, bevy_rapier2d) (spec: core-gameplay.md)
+- [x] Configure Bevy app: 224x288 logical resolution, 2x pixel-perfect scaling, 60fps, window title "Galaga" (spec: core-gameplay.md)
+- [x] Define GameState enum (Loading, Menu, Playing, Paused, GameOver, ChallengingStage) and wire state transitions (spec: core-gameplay.md)
 - [ ] Set up module structure: player/, enemies/, waves/, collision/, scoring/, effects/, ui/, audio/ (spec: core-gameplay.md)
 
 ### Phase 2: Asset Pipeline
@@ -87,7 +87,7 @@
 
 ## Completed
 
-<!-- Completed tasks move here -->
+- [x] Initialize Rust project: `cargo new galaga`, add Bevy 0.18 + all deps to Cargo.toml (bevy_kira_audio, bevy_asset_loader, bevy_rapier2d) (spec: core-gameplay.md)
 
 ## Notes
 
