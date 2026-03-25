@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::components::{
-    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DespawnTimer, Dying, EnemyState,
-    EnemyType, Explosion, FormationSlot, Health, PlayerShip,
+    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DespawnTimer, DualFighter, Dying,
+    EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::resources::{DualFighterState, Formation};
@@ -181,6 +181,82 @@ pub fn diving_enemy_player_collision(
         if aabb_overlaps(e_pos, e_col.half_size, p_pos, p_col.half_size) {
             commands.entity(player_entity).insert(Dying);
             return; // one hit is enough
+        }
+    }
+}
+
+/// Detect collisions between enemy bullets and the dual fighter ship.
+///
+/// On hit:
+///   - Despawn the enemy bullet.
+///   - Despawn the dual fighter.
+///   - Set `DualFighterState.active = false` (reverts to single ship).
+pub fn enemy_bullet_dual_fighter_collision(
+    mut commands: Commands,
+    bullet_query: Query<(Entity, &Transform, &Collider, &Bullet)>,
+    dual_query: Query<(Entity, &Transform, &Collider), With<DualFighter>>,
+    mut dual_state: ResMut<DualFighterState>,
+) {
+    let Ok((dual_entity, d_tf, d_col)) = dual_query.single() else {
+        return;
+    };
+    let d_pos = d_tf.translation.truncate();
+
+    for (bullet_entity, b_tf, b_col, bullet) in &bullet_query {
+        if bullet.owner != BulletOwner::Enemy {
+            continue;
+        }
+        let b_pos = b_tf.translation.truncate();
+        if aabb_overlaps(b_pos, b_col.half_size, d_pos, d_col.half_size) {
+            commands.entity(bullet_entity).despawn();
+            commands.spawn((
+                Explosion {
+                    frame: 0,
+                    timer: Timer::from_seconds(0.08, TimerMode::Repeating),
+                },
+                Transform::from_translation(d_tf.translation),
+                DespawnTimer(Timer::from_seconds(0.5, TimerMode::Once)),
+            ));
+            commands.entity(dual_entity).despawn();
+            dual_state.active = false;
+            return;
+        }
+    }
+}
+
+/// Detect collisions between diving enemies (body) and the dual fighter ship.
+///
+/// On hit:
+///   - Despawn the dual fighter.
+///   - Set `DualFighterState.active = false` (reverts to single ship).
+pub fn diving_enemy_dual_fighter_collision(
+    mut commands: Commands,
+    enemy_query: Query<(&Transform, &Collider, &EnemyState)>,
+    dual_query: Query<(Entity, &Transform, &Collider), With<DualFighter>>,
+    mut dual_state: ResMut<DualFighterState>,
+) {
+    let Ok((dual_entity, d_tf, d_col)) = dual_query.single() else {
+        return;
+    };
+    let d_pos = d_tf.translation.truncate();
+
+    for (e_tf, e_col, enemy_state) in &enemy_query {
+        if *enemy_state != EnemyState::Diving {
+            continue;
+        }
+        let e_pos = e_tf.translation.truncate();
+        if aabb_overlaps(e_pos, e_col.half_size, d_pos, d_col.half_size) {
+            commands.spawn((
+                Explosion {
+                    frame: 0,
+                    timer: Timer::from_seconds(0.08, TimerMode::Repeating),
+                },
+                Transform::from_translation(d_tf.translation),
+                DespawnTimer(Timer::from_seconds(0.5, TimerMode::Once)),
+            ));
+            commands.entity(dual_entity).despawn();
+            dual_state.active = false;
+            return;
         }
     }
 }

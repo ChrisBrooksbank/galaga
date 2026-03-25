@@ -62,7 +62,7 @@
 - [x] Player capture: player ship entity transitions to CapturedShip, attaches to Boss, formation continues (spec: enemy-ai.md)
 - [x] Dual fighter: spawn second player ship; both ships fire when dual fighter active (4 bullets max) (spec: enemy-ai.md)
 - [x] Dual fighter rescue: player destroys Boss during dive → captured ship freed → joins player as dual fighter (spec: enemy-ai.md)
-- [ ] Dual fighter death: losing dual fighter reverts to single ship (spec: enemy-ai.md)
+- [x] Dual fighter death: losing dual fighter reverts to single ship (spec: enemy-ai.md)
 
 ### Phase 9: Challenging Stages & Splitters
 - [ ] Challenging stage trigger: stages 3, 7, 11, 15, ... spawn challenging stage (no formation, enemies fly fixed patterns) (spec: enemy-ai.md)

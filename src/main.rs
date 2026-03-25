@@ -19,7 +19,10 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
-use collision::{bullet_enemy_collision, diving_enemy_player_collision, enemy_bullet_player_collision};
+use collision::{
+    bullet_enemy_collision, diving_enemy_dual_fighter_collision, diving_enemy_player_collision,
+    enemy_bullet_dual_fighter_collision, enemy_bullet_player_collision,
+};
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system, enemy_fire_system, group_attack_system};
 use enemies::tractor_beam::{boss_tractor_decision, player_capture_system, pulse_tractor_beam_system, spawn_tractor_beam_system};
@@ -96,6 +99,8 @@ fn main() {
                 bullet_enemy_collision,
                 enemy_bullet_player_collision,
                 diving_enemy_player_collision,
+                enemy_bullet_dual_fighter_collision,
+                diving_enemy_dual_fighter_collision,
             )
                 .run_if(in_state(GameState::Playing)),
         )
