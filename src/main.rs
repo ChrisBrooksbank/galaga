@@ -20,7 +20,7 @@ pub mod waves;
 
 use assets::GameAssets;
 use collision::{bullet_enemy_collision, diving_enemy_player_collision, enemy_bullet_player_collision};
-use constants::PLAYER_START_LIVES;
+use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
@@ -131,6 +131,7 @@ fn init_scoreboard(mut score_board: ResMut<ScoreBoard>) {
     score_board.score = 0;
     score_board.lives = PLAYER_START_LIVES;
     score_board.current_stage = 1;
+    score_board.next_extra_life = FIRST_EXTRA_LIFE_SCORE;
     // high_score persists across games intentionally
 }
 

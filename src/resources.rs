@@ -4,12 +4,26 @@ use crate::constants::{
     FORMATION_BREATHING_AMPLITUDE, FORMATION_SLOT_SIZE, FORMATION_TOP_Y,
 };
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ScoreBoard {
     pub score: u32,
     pub high_score: u32,
     pub lives: u8,
     pub current_stage: u32,
+    /// Score threshold at which the next extra life is awarded.
+    pub next_extra_life: u32,
+}
+
+impl Default for ScoreBoard {
+    fn default() -> Self {
+        Self {
+            score: 0,
+            high_score: 0,
+            lives: 0,
+            current_stage: 0,
+            next_extra_life: crate::constants::FIRST_EXTRA_LIFE_SCORE,
+        }
+    }
 }
 
 #[derive(Resource)]

@@ -44,7 +44,7 @@
 ### Phase 6: Scoring & Lives
 - [x] ScoreBoard resource: score, high score, lives (3), stage; scoring constants per enemy type and state (diving vs formation) (spec: core-gameplay.md)
 - [x] Score event handler: apply correct points (Bee 50/100, Butterfly 80/160, Boss 150/400 formation; Boss 800/1600 diving) (spec: core-gameplay.md)
-- [ ] Extra life system: award extra life at 20,000 points, then every 70,000 after that (spec: core-gameplay.md)
+- [x] Extra life system: award extra life at 20,000 points, then every 70,000 after that (spec: core-gameplay.md)
 - [ ] Stage progression: advance stage when all enemies destroyed; increase difficulty params (spec: core-gameplay.md)
 - [ ] DifficultyConfig resource with formula-driven scaling per stage (enemy speed, fire rate, dive probability, concurrent attackers) (spec: enemy-ai.md)
 
