@@ -27,7 +27,7 @@
 - [x] Player horizontal movement system: keyboard left/right, clamped to screen bounds, speed from config (spec: core-gameplay.md)
 - [x] Player shoot system: Space key fires bullet, max 2 simultaneous bullets on screen (spec: core-gameplay.md)
 - [x] Bullet movement system: bullets travel upward, despawn at top of screen (spec: core-gameplay.md)
-- [ ] Player death + respawn system: remove entity, show explosion, decrement lives, respawn if lives > 0 (spec: core-gameplay.md)
+- [x] Player death + respawn system: remove entity, show explosion, decrement lives, respawn if lives > 0 (spec: core-gameplay.md)
 
 ### Phase 4: Formation Layout & Animation
 - [ ] Define Formation resource: 40-slot grid (4 Boss rows=0, 16 Butterfly rows=1-2, 20 Bee rows=3-4), slot positions (spec: core-gameplay.md)

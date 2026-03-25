@@ -19,7 +19,12 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
-use player::{move_bullets, player_movement, player_shoot, spawn_player};
+use constants::PLAYER_START_LIVES;
+use player::{
+    handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
+    RespawnTimer,
+};
+use resources::ScoreBoard;
 use states::GameState;
 
 fn main() {
@@ -36,6 +41,8 @@ fn main() {
         }))
         .add_plugins(AudioPlugin)
         .init_state::<GameState>()
+        .init_resource::<ScoreBoard>()
+        .init_resource::<RespawnTimer>()
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
             LoadingState::new(GameState::Loading)
@@ -43,18 +50,23 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .add_systems(Startup, setup_camera)
-        // Spawn player when entering Playing state
-        .add_systems(OnEnter(GameState::Playing), spawn_player)
+        // Reset game state and spawn player when entering Playing
+        .add_systems(OnEnter(GameState::Playing), (init_scoreboard, spawn_player).chain())
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
         // Playing → Paused on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         // Paused → Playing on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Paused)))
-        // Player systems (only while Playing)
+        // Player movement and shooting (only while Playing)
         .add_systems(
             Update,
             (player_movement, player_shoot, move_bullets).run_if(in_state(GameState::Playing)),
+        )
+        // Player death and respawn (only while Playing)
+        .add_systems(
+            Update,
+            (handle_player_death, tick_respawn).run_if(in_state(GameState::Playing)),
         )
         .run();
 }
@@ -76,6 +88,13 @@ fn menu_to_playing(
     if keys.just_pressed(KeyCode::Space) {
         next_state.set(GameState::Playing);
     }
+}
+
+fn init_scoreboard(mut score_board: ResMut<ScoreBoard>) {
+    score_board.score = 0;
+    score_board.lives = PLAYER_START_LIVES;
+    score_board.current_stage = 1;
+    // high_score persists across games intentionally
 }
 
 fn toggle_pause(

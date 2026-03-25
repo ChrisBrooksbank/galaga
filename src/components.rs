@@ -83,6 +83,13 @@ pub struct Explosion {
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
 
+// --- Death / Respawn ---
+
+/// Marker added to the player ship entity when it has been hit and should be destroyed.
+/// The `handle_player_death` system processes entities with this marker.
+#[derive(Component)]
+pub struct Dying;
+
 // --- Animation ---
 
 #[derive(Component)]
