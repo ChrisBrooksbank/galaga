@@ -29,6 +29,7 @@ use player::{
     RespawnTimer,
 };
 use resources::{Formation, ScoreBoard};
+use scoring::handle_score_event;
 use states::GameState;
 
 fn main() {
@@ -48,6 +49,7 @@ fn main() {
         .init_resource::<ScoreBoard>()
         .init_resource::<Formation>()
         .init_resource::<RespawnTimer>()
+        .add_observer(handle_score_event)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
             LoadingState::new(GameState::Loading)
