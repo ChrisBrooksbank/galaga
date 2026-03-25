@@ -110,6 +110,8 @@ pub struct WaveController {
     pub current_wave: u32,
     pub entry_pattern_index: usize,
     pub spawn_timer: Option<Timer>,
+    /// Set to true once the first wave has been spawned; guards stage-complete detection.
+    pub enemies_ever_spawned: bool,
 }
 
 #[derive(Resource)]

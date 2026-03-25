@@ -28,9 +28,10 @@ use player::{
     handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
     RespawnTimer,
 };
-use resources::{Formation, ScoreBoard};
+use resources::{DifficultyConfig, Formation, ScoreBoard, WaveController};
 use scoring::handle_score_event;
 use states::GameState;
+use waves::{check_stage_complete, tick_stage_transition, StageClearTimer};
 
 fn main() {
     App::new()
@@ -49,6 +50,9 @@ fn main() {
         .init_resource::<ScoreBoard>()
         .init_resource::<Formation>()
         .init_resource::<RespawnTimer>()
+        .init_resource::<DifficultyConfig>()
+        .init_resource::<WaveController>()
+        .init_resource::<StageClearTimer>()
         .add_observer(handle_score_event)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
@@ -60,7 +64,7 @@ fn main() {
         // Reset game state, spawn player and formation when entering Playing
         .add_systems(
             OnEnter(GameState::Playing),
-            (init_scoreboard, spawn_player, spawn_formation).chain(),
+            (init_scoreboard, reset_wave_state, spawn_player, spawn_formation).chain(),
         )
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
@@ -87,6 +91,13 @@ fn main() {
         .add_systems(
             Update,
             (handle_player_death, tick_respawn).run_if(in_state(GameState::Playing)),
+        )
+        // Stage progression (only while Playing)
+        .add_systems(
+            Update,
+            (check_stage_complete, tick_stage_transition)
+                .chain()
+                .run_if(in_state(GameState::Playing)),
         )
         // Formation breathing animation (only while Playing)
         .add_systems(
@@ -133,6 +144,16 @@ fn init_scoreboard(mut score_board: ResMut<ScoreBoard>) {
     score_board.current_stage = 1;
     score_board.next_extra_life = FIRST_EXTRA_LIFE_SCORE;
     // high_score persists across games intentionally
+}
+
+fn reset_wave_state(
+    mut wave_controller: ResMut<WaveController>,
+    mut stage_clear_timer: ResMut<StageClearTimer>,
+    mut difficulty: ResMut<DifficultyConfig>,
+) {
+    *wave_controller = WaveController::default();
+    *stage_clear_timer = StageClearTimer::default();
+    waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 
 fn toggle_pause(

@@ -4,22 +4,15 @@ use crate::assets::{enemy_sprite_index, GameAssets};
 use crate::components::{AnimationTimer, Collider, EnemyState, EnemyType, FormationSlot, Health};
 use crate::enemies::entry_patterns::build_entry_path;
 use crate::enemies::formation::{enemy_type_for_slot, slot_row_col};
-use crate::resources::{Formation, ScoreBoard};
+use crate::resources::{Formation, ScoreBoard, WaveController};
 
-/// Spawn all 40 enemies off-screen and assign them entry-animation paths.
+/// Core spawn logic: populates the Formation resource and spawns all 40 enemy entities.
 ///
-/// Each enemy begins in `EnemyState::Forming` and carries an `EntryPath`
-/// that guides it to its formation slot.  The `move_forming_enemies` system
-/// (entry_patterns module) drives the motion; once an enemy reaches its home
-/// position it transitions to `EnemyState::InFormation`.
-pub fn spawn_formation(
-    mut commands: Commands,
-    mut formation: ResMut<Formation>,
-    game_assets: Res<GameAssets>,
-    score_board: Res<ScoreBoard>,
-) {
+/// Called both from the `spawn_formation` system (first wave) and the stage-transition
+/// system (subsequent waves).
+pub fn do_spawn_formation(commands: &mut Commands, formation: &mut Formation, game_assets: &GameAssets, stage: u32) {
     // Derive entry pattern from the current stage (cycles every 3 stages).
-    let pattern = ((score_board.current_stage.saturating_sub(1)) % 3) as usize;
+    let pattern = ((stage.saturating_sub(1)) % 3) as usize;
 
     for slot_index in 0..40usize {
         let enemy_type = enemy_type_for_slot(slot_index);
@@ -70,4 +63,16 @@ pub fn spawn_formation(
 
         formation.slots[slot_index] = Some(entity);
     }
+}
+
+/// System wrapper: spawn the first wave of enemies when entering the Playing state.
+pub fn spawn_formation(
+    mut commands: Commands,
+    mut formation: ResMut<Formation>,
+    game_assets: Res<GameAssets>,
+    score_board: Res<ScoreBoard>,
+    mut wave_controller: ResMut<WaveController>,
+) {
+    do_spawn_formation(&mut commands, &mut formation, &game_assets, score_board.current_stage);
+    wave_controller.enemies_ever_spawned = true;
 }
