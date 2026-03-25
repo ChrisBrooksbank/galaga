@@ -20,6 +20,49 @@ use crate::components::{DivePath, DivePathProgress, EnemyState, EnemyType, Forma
 use crate::enemies::dive_paths::get_dive_path;
 use crate::resources::DifficultyConfig;
 
+// ── Dive movement ─────────────────────────────────────────────────────────────
+
+/// Move every `Diving` enemy along its `DivePath` waypoints.
+///
+/// Each frame the enemy advances toward `DivePath.0[DivePathProgress.current_waypoint]`
+/// at `DifficultyConfig::dive_speed` units per second.  When it arrives it snaps to
+/// the waypoint and increments `current_waypoint`, ready for `dive_completion_system`
+/// to detect path exhaustion on the same or next frame.
+pub fn dive_movement_system(
+    time: Res<Time>,
+    difficulty: Res<DifficultyConfig>,
+    mut query: Query<(&mut Transform, &DivePath, &mut DivePathProgress, &EnemyState)>,
+) {
+    let dt = time.delta_secs();
+    let speed = difficulty.dive_speed;
+
+    for (mut transform, path, mut progress, state) in &mut query {
+        if *state != EnemyState::Diving {
+            continue;
+        }
+
+        let Some(&target) = path.0.get(progress.current_waypoint) else {
+            continue; // path exhausted — completion system handles transition
+        };
+
+        let pos = transform.translation.truncate();
+        let dir = target - pos;
+        let dist = dir.length();
+        let step = speed * dt;
+
+        if dist <= step {
+            // Snap to waypoint and advance to the next one.
+            transform.translation.x = target.x;
+            transform.translation.y = target.y;
+            progress.current_waypoint += 1;
+        } else {
+            let movement = dir.normalize() * step;
+            transform.translation.x += movement.x;
+            transform.translation.y += movement.y;
+        }
+    }
+}
+
 // ── Dive decision ─────────────────────────────────────────────────────────────
 
 /// Each frame, optionally pick one InFormation enemy to begin a dive.

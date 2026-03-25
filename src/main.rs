@@ -21,7 +21,7 @@ pub mod waves;
 use assets::GameAssets;
 use collision::{bullet_enemy_collision, diving_enemy_player_collision, enemy_bullet_player_collision};
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
-use enemies::ai::{dive_completion_system, dive_decision_system};
+use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system};
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
@@ -117,10 +117,11 @@ fn main() {
             Update,
             animate_enemy_wings.run_if(in_state(GameState::Playing)),
         )
-        // Dive state machine: select divers and detect path completion (only while Playing)
+        // Dive state machine: select divers, move them, detect path completion (only while Playing)
         .add_systems(
             Update,
-            (dive_decision_system, dive_completion_system)
+            (dive_decision_system, dive_movement_system, dive_completion_system)
+                .chain()
                 .run_if(in_state(GameState::Playing)),
         )
         .run();
