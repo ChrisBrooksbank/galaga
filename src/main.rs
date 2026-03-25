@@ -119,9 +119,22 @@ fn main() {
             animate_enemy_wings.run_if(in_state(GameState::Playing)),
         )
         // Dive state machine: select divers, move them, detect path completion (only while Playing)
+        //
+        // `apply_deferred` is inserted between the two dive-selection systems so that
+        // commands from `dive_decision_system` (which marks an enemy as Diving) are
+        // flushed before `group_attack_system` counts current divers.  Without this
+        // flush, both systems could see a stale diver count on the same frame and
+        // jointly exceed `DifficultyConfig::max_concurrent_divers`.
         .add_systems(
             Update,
-            (dive_decision_system, group_attack_system, dive_movement_system, dive_completion_system, enemy_fire_system)
+            (
+                dive_decision_system,
+                ApplyDeferred,
+                group_attack_system,
+                dive_movement_system,
+                dive_completion_system,
+                enemy_fire_system,
+            )
                 .chain()
                 .run_if(in_state(GameState::Playing)),
         )

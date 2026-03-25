@@ -54,7 +54,7 @@
 - [x] Dive movement system: move enemy along waypoints, return to formation slot when done (spec: enemy-ai.md)
 - [x] Enemy firing system: enemies fire during dives at difficulty-scaled intervals; bullets travel downward (spec: enemy-ai.md)
 - [x] Group attack coordinator: schedule Bee group attacks and Butterfly group attacks per wave timing (spec: enemy-ai.md)
-- [ ] Concurrent attacker limiter: enforce max simultaneous divers per difficulty level (spec: enemy-ai.md)
+- [x] Concurrent attacker limiter: enforce max simultaneous divers per difficulty level (spec: enemy-ai.md)
 
 ### Phase 8: Boss Galaga Tractor Beam
 - [ ] Tractor beam trigger: Boss Galaga (2+ on field) can initiate capture dive; requires no player bullet in flight (spec: enemy-ai.md)
