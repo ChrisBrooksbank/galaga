@@ -124,6 +124,20 @@ impl EntryPath {
     }
 }
 
+// --- Dive path progress ---
+
+/// Tracks how far an enemy has advanced along its `DivePath`.
+///
+/// `current_waypoint` is the index of the **next** waypoint to move toward.
+/// It starts at 1 (index 0 is the enemy's current position / home) and is
+/// incremented by the dive-movement system as each waypoint is reached.
+/// When `current_waypoint >= DivePath.0.len()` the dive is complete and the
+/// state machine transitions the enemy back to `InFormation`.
+#[derive(Component, Default)]
+pub struct DivePathProgress {
+    pub current_waypoint: usize,
+}
+
 // --- Animation ---
 
 #[derive(Component)]
