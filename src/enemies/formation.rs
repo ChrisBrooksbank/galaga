@@ -7,7 +7,11 @@
 //  20–29  Bee        row 3, cols 0–9  (10 enemies)
 //  30–39  Bee        row 4, cols 0–9  (10 enemies)
 
-use crate::components::EnemyType;
+use bevy::prelude::*;
+
+use crate::components::{EnemyState, EnemyType, FormationSlot};
+use crate::constants::FORMATION_BREATHING_FREQUENCY;
+use crate::resources::Formation;
 
 /// Convert (row, col) to a flat slot index.
 ///
@@ -67,6 +71,27 @@ pub fn cols_for_row(row: u8) -> u8 {
         1 | 2 => 8,
         3 | 4 => 10,
         _ => panic!("Invalid formation row {row}"),
+    }
+}
+
+/// Advance the formation breathing phase each frame.
+pub fn update_formation_breathing(mut formation: ResMut<Formation>, time: Res<Time>) {
+    formation.breathing_phase =
+        (formation.breathing_phase + FORMATION_BREATHING_FREQUENCY * time.delta_secs()).fract();
+}
+
+/// Apply the current breathing offset to all enemies sitting in the formation.
+pub fn apply_formation_breathing(
+    formation: Res<Formation>,
+    mut query: Query<(&FormationSlot, &EnemyState, &mut Transform)>,
+) {
+    for (slot, state, mut transform) in &mut query {
+        if *state == EnemyState::InFormation {
+            let idx = slot_index(slot.row, slot.col);
+            let pos = formation.current_pos(idx);
+            transform.translation.x = pos.x;
+            transform.translation.y = pos.y;
+        }
     }
 }
 

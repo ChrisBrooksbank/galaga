@@ -32,7 +32,7 @@
 ### Phase 4: Formation Layout & Animation
 - [x] Define Formation resource: 40-slot grid (4 Boss rows=0, 16 Butterfly rows=1-2, 20 Bee rows=3-4), slot positions (spec: core-gameplay.md)
 - [x] Spawn 40 enemy entities in formation with correct EnemyType (Boss, Butterfly, Bee) and formation slot (spec: core-gameplay.md)
-- [ ] Formation breathing animation: sinusoidal horizontal oscillation of the entire formation (spec: core-gameplay.md)
+- [x] Formation breathing animation: sinusoidal horizontal oscillation of the entire formation (spec: core-gameplay.md)
 - [ ] Enemy wing-flutter animation: 2-frame sprite cycle per enemy, timed independently (spec: visual-polish.md)
 - [ ] Enemy entry animation system: enemies enter in single-file lines from screen edges, follow curved path to formation slot (spec: core-gameplay.md)
 
