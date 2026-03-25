@@ -34,7 +34,7 @@
 - [x] Spawn 40 enemy entities in formation with correct EnemyType (Boss, Butterfly, Bee) and formation slot (spec: core-gameplay.md)
 - [x] Formation breathing animation: sinusoidal horizontal oscillation of the entire formation (spec: core-gameplay.md)
 - [x] Enemy wing-flutter animation: 2-frame sprite cycle per enemy, timed independently (spec: visual-polish.md)
-- [ ] Enemy entry animation system: enemies enter in single-file lines from screen edges, follow curved path to formation slot (spec: core-gameplay.md)
+- [x] Enemy entry animation system: enemies enter in single-file lines from screen edges, follow curved path to formation slot (spec: core-gameplay.md)
 
 ### Phase 5: Collision Detection
 - [ ] AABB collision system: bullet vs enemy — destroy both, emit ScoreEvent, spawn explosion (spec: core-gameplay.md)

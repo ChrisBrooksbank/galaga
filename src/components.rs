@@ -90,6 +90,40 @@ pub struct DespawnTimer(pub Timer);
 #[derive(Component)]
 pub struct Dying;
 
+// --- Entry animation ---
+
+/// Path an enemy follows during its fly-in entry animation.
+///
+/// `waypoints[0]` doubles as the initial off-screen spawn position; the
+/// movement system advances past it immediately (distance == 0) so the
+/// enemy effectively starts there and moves toward `waypoints[1]` onward.
+#[derive(Component)]
+pub struct EntryPath {
+    /// Ordered world-space positions.  The last element must equal the
+    /// enemy's formation home position.
+    pub waypoints: Vec<Vec2>,
+    /// Index of the next waypoint to move toward.
+    pub current_waypoint: usize,
+    /// Units per second along the path.
+    pub speed: f32,
+    /// Seconds to wait (off-screen) before starting to move.
+    pub delay_secs: f32,
+}
+
+impl EntryPath {
+    pub fn next_target(&self) -> Option<Vec2> {
+        self.waypoints.get(self.current_waypoint).copied()
+    }
+
+    pub fn advance(&mut self) {
+        self.current_waypoint += 1;
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.current_waypoint >= self.waypoints.len()
+    }
+}
+
 // --- Animation ---
 
 #[derive(Component)]

@@ -20,6 +20,7 @@ pub mod waves;
 
 use assets::GameAssets;
 use constants::PLAYER_START_LIVES;
+use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
 use player::{
@@ -80,6 +81,11 @@ fn main() {
             (update_formation_breathing, apply_formation_breathing)
                 .chain()
                 .run_if(in_state(GameState::Playing)),
+        )
+        // Entry animation: fly forming enemies to their formation slots.
+        .add_systems(
+            Update,
+            move_forming_enemies.run_if(in_state(GameState::Playing)),
         )
         // Enemy wing-flutter animation (only while Playing)
         .add_systems(
