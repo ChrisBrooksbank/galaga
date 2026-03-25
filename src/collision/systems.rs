@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::components::{
-    Bullet, BulletOwner, Collider, DespawnTimer, Dying, EnemyState, Explosion, FormationSlot,
-    Health, PlayerShip,
+    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DespawnTimer, Dying, EnemyState,
+    EnemyType, Explosion, FormationSlot, Health, PlayerShip,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
-use crate::resources::Formation;
+use crate::resources::{DualFighterState, Formation};
 use crate::scoring::ScoreEvent;
 
 /// Returns true if two axis-aligned bounding boxes overlap.
@@ -35,6 +35,8 @@ pub fn bullet_enemy_collision(
         &FormationSlot,
     )>,
     mut formation: ResMut<Formation>,
+    mut dual_fighter: ResMut<DualFighterState>,
+    captured_query: Query<(Entity, &CapturedBy), With<CapturedShip>>,
 ) {
     // --- Pass 1: collect (bullet_entity, enemy_entity) hit pairs ---
     // Uses read-only iteration so the mutable borrow is free for pass 2.
@@ -108,6 +110,23 @@ pub fn bullet_enemy_collision(
 
             commands.entity(enemy_entity).despawn();
             despawned_enemies.insert(enemy_entity);
+
+            // Boss Galaga death: handle captured ship rescue or cleanup.
+            if enemy_type == EnemyType::Boss {
+                for (captured_entity, captured_by) in &captured_query {
+                    if captured_by.0 != enemy_entity {
+                        continue;
+                    }
+                    // Despawn the captured ship regardless of boss state.
+                    commands.entity(captured_entity).despawn();
+                    dual_fighter.captured_ship = None;
+                    // Rescue only when boss was diving (not in formation).
+                    if is_diving {
+                        dual_fighter.active = true;
+                    }
+                    break;
+                }
+            }
         }
     }
 }
