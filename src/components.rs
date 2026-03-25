@@ -156,6 +156,25 @@ pub struct EnemyFireCooldown(pub Timer);
 #[derive(Component)]
 pub struct TractorBeamRun;
 
+/// Marker inserted on the Boss once its tractor-beam visual has been spawned.
+/// Prevents `spawn_tractor_beam_system` from re-spawning the beam every frame.
+#[derive(Component)]
+pub struct TractorBeamSpawned;
+
+/// Component on each fan-segment sprite that makes up the tractor beam visual.
+/// Drives the pulsing alpha animation independently per segment.
+#[derive(Component)]
+pub struct TractorBeam {
+    /// Current phase in 0..TAU; incremented each frame.
+    pub pulse_phase: f32,
+}
+
+/// Marker added to the player ship while a tractor beam is active.
+/// The player movement system skips entities that carry this component,
+/// locking the ship in place during the capture sequence.
+#[derive(Component)]
+pub struct PlayerFrozen;
+
 // --- Animation ---
 
 #[derive(Component)]

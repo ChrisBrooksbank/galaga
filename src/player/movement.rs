@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::{MovementSpeed, PlayerShip};
+use crate::components::{MovementSpeed, PlayerFrozen, PlayerShip};
 use crate::constants::LOGICAL_WIDTH;
 
 /// Half the player sprite width used for screen-edge clamping.
@@ -11,7 +11,7 @@ const X_MAX: f32 = LOGICAL_WIDTH / 2.0 - PLAYER_HALF_WIDTH;
 pub fn player_movement(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<(&MovementSpeed, &mut Transform), With<PlayerShip>>,
+    mut query: Query<(&MovementSpeed, &mut Transform), (With<PlayerShip>, Without<PlayerFrozen>)>,
 ) {
     let Ok((speed, mut transform)) = query.single_mut() else {
         return;
