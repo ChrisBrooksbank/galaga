@@ -19,7 +19,7 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
-use collision::bullet_enemy_collision;
+use collision::{bullet_enemy_collision, diving_enemy_player_collision, enemy_bullet_player_collision};
 use constants::PLAYER_START_LIVES;
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
@@ -74,7 +74,12 @@ fn main() {
         // Collision detection (only while Playing)
         .add_systems(
             Update,
-            (bullet_enemy_collision,).run_if(in_state(GameState::Playing)),
+            (
+                bullet_enemy_collision,
+                enemy_bullet_player_collision,
+                diving_enemy_player_collision,
+            )
+                .run_if(in_state(GameState::Playing)),
         )
         // Player death and respawn (only while Playing)
         .add_systems(

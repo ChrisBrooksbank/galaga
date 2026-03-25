@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::components::{
-    Bullet, BulletOwner, Collider, DespawnTimer, EnemyState, Explosion, FormationSlot, Health,
+    Bullet, BulletOwner, Collider, DespawnTimer, Dying, EnemyState, Explosion, FormationSlot,
+    Health, PlayerShip,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::resources::Formation;
@@ -107,6 +108,60 @@ pub fn bullet_enemy_collision(
 
             commands.entity(enemy_entity).despawn();
             despawned_enemies.insert(enemy_entity);
+        }
+    }
+}
+
+/// Detect collisions between enemy bullets and the player ship.
+///
+/// On hit:
+///   - Despawn the enemy bullet.
+///   - Add `Dying` marker to the player (processed by `handle_player_death`).
+pub fn enemy_bullet_player_collision(
+    mut commands: Commands,
+    bullet_query: Query<(Entity, &Transform, &Collider, &Bullet)>,
+    player_query: Query<(Entity, &Transform, &Collider), (With<PlayerShip>, Without<Dying>)>,
+) {
+    let Ok((player_entity, p_tf, p_col)) = player_query.single() else {
+        return;
+    };
+    let p_pos = p_tf.translation.truncate();
+
+    for (bullet_entity, b_tf, b_col, bullet) in &bullet_query {
+        if bullet.owner != BulletOwner::Enemy {
+            continue;
+        }
+        let b_pos = b_tf.translation.truncate();
+        if aabb_overlaps(b_pos, b_col.half_size, p_pos, p_col.half_size) {
+            commands.entity(bullet_entity).despawn();
+            commands.entity(player_entity).insert(Dying);
+            return; // one hit is enough
+        }
+    }
+}
+
+/// Detect collisions between diving enemies (body) and the player ship.
+///
+/// On hit:
+///   - Add `Dying` marker to the player (processed by `handle_player_death`).
+pub fn diving_enemy_player_collision(
+    mut commands: Commands,
+    enemy_query: Query<(&Transform, &Collider, &EnemyState)>,
+    player_query: Query<(Entity, &Transform, &Collider), (With<PlayerShip>, Without<Dying>)>,
+) {
+    let Ok((player_entity, p_tf, p_col)) = player_query.single() else {
+        return;
+    };
+    let p_pos = p_tf.translation.truncate();
+
+    for (e_tf, e_col, enemy_state) in &enemy_query {
+        if *enemy_state != EnemyState::Diving {
+            continue;
+        }
+        let e_pos = e_tf.translation.truncate();
+        if aabb_overlaps(e_pos, e_col.half_size, p_pos, p_col.half_size) {
+            commands.entity(player_entity).insert(Dying);
+            return; // one hit is enough
         }
     }
 }

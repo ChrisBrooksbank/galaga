@@ -38,8 +38,8 @@
 
 ### Phase 5: Collision Detection
 - [x] AABB collision system: bullet vs enemy — destroy both, emit ScoreEvent, spawn explosion (spec: core-gameplay.md)
-- [ ] AABB collision system: enemy/bullet vs player — trigger player death, spawn explosion (spec: core-gameplay.md)
-- [ ] Collision system: enemy body vs player during dive — trigger player death (spec: core-gameplay.md)
+- [x] AABB collision system: enemy/bullet vs player — trigger player death, spawn explosion (spec: core-gameplay.md)
+- [x] Collision system: enemy body vs player during dive — trigger player death (spec: core-gameplay.md)
 
 ### Phase 6: Scoring & Lives
 - [ ] ScoreBoard resource: score, high score, lives (3), stage; scoring constants per enemy type and state (diving vs formation) (spec: core-gameplay.md)
