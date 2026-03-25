@@ -7,7 +7,7 @@ use crate::components::{
     DualFighter, Dying, EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
 };
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
-use crate::resources::{DualFighterState, Formation};
+use crate::resources::{ChallengingStageData, DualFighterState, Formation};
 use crate::scoring::ScoreEvent;
 
 /// Returns true if two axis-aligned bounding boxes overlap.
@@ -242,6 +242,7 @@ pub fn bullet_challenging_enemy_collision(
         (Entity, &Transform, &Collider, &EnemyType, &mut Health),
         With<ChallengingFlightPath>,
     >,
+    mut challenging_data: ResMut<ChallengingStageData>,
 ) {
     let mut used_bullets: std::collections::HashSet<Entity> = std::collections::HashSet::new();
 
@@ -276,6 +277,7 @@ pub fn bullet_challenging_enemy_collision(
                 ));
                 // Challenging stage enemies are always considered "diving".
                 commands.trigger(ScoreEvent { enemy_type: *enemy_type, is_diving: true });
+                challenging_data.enemies_killed += 1;
                 commands.entity(enemy_entity).despawn();
             }
             break;

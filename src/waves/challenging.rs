@@ -144,6 +144,15 @@ pub fn challenging_stage_completion(
         return;
     }
 
+    // Perfect bonus: all 40 enemies destroyed earns 10,000 bonus points.
+    if data.enemies_killed >= data.total_enemies {
+        const PERFECT_BONUS: u32 = 10_000;
+        score_board.score += PERFECT_BONUS;
+        if score_board.score > score_board.high_score {
+            score_board.high_score = score_board.score;
+        }
+    }
+
     // Advance past the challenging stage to the next normal stage.
     score_board.current_stage += 1;
     update_difficulty_for_stage(&mut difficulty, score_board.current_stage);
