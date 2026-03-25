@@ -52,7 +52,7 @@
 - [x] Define predefined waypoint dive paths as Bezier curves / waypoint arrays for each enemy type and side (spec: enemy-ai.md)
 - [x] Dive state machine: Idle → Diving → Returning; select random dive path on enter (spec: enemy-ai.md)
 - [x] Dive movement system: move enemy along waypoints, return to formation slot when done (spec: enemy-ai.md)
-- [ ] Enemy firing system: enemies fire during dives at difficulty-scaled intervals; bullets travel downward (spec: enemy-ai.md)
+- [x] Enemy firing system: enemies fire during dives at difficulty-scaled intervals; bullets travel downward (spec: enemy-ai.md)
 - [ ] Group attack coordinator: schedule Bee group attacks and Butterfly group attacks per wave timing (spec: enemy-ai.md)
 - [ ] Concurrent attacker limiter: enforce max simultaneous divers per difficulty level (spec: enemy-ai.md)
 

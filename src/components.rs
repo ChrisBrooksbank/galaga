@@ -138,6 +138,13 @@ pub struct DivePathProgress {
     pub current_waypoint: usize,
 }
 
+// --- Enemy firing ---
+
+/// Per-enemy repeating timer that controls when a diving enemy fires a bullet.
+/// Inserted when an enemy starts diving; removed when it returns to formation.
+#[derive(Component)]
+pub struct EnemyFireCooldown(pub Timer);
+
 // --- Animation ---
 
 #[derive(Component)]

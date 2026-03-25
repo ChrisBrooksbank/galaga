@@ -16,7 +16,12 @@
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::components::{DivePath, DivePathProgress, EnemyState, EnemyType, FormationSlot};
+use crate::assets::GameAssets;
+use crate::components::{
+    Bullet, BulletOwner, Collider, DivePath, DivePathProgress, EnemyFireCooldown, EnemyState,
+    EnemyType, FormationSlot, PlayerShip, Velocity,
+};
+use crate::constants::ENEMY_BULLET_SPEED;
 use crate::enemies::dive_paths::get_dive_path;
 use crate::resources::DifficultyConfig;
 
@@ -117,9 +122,11 @@ pub fn dive_decision_system(
 
     // `current_waypoint = 1`: waypoint 0 is the enemy's current (home) pos;
     // the movement system starts moving toward waypoint 1 immediately.
+    let fire_timer = Timer::from_seconds(difficulty.fire_interval, TimerMode::Repeating);
     commands.entity(entity)
         .insert(DivePath(path))
         .insert(DivePathProgress { current_waypoint: 1 })
+        .insert(EnemyFireCooldown(fire_timer))
         .insert(EnemyState::Diving); // replaces existing EnemyState component
 }
 
@@ -140,7 +147,52 @@ pub fn dive_completion_system(
             *state = EnemyState::InFormation;
             commands.entity(entity)
                 .remove::<DivePath>()
-                .remove::<DivePathProgress>();
+                .remove::<DivePathProgress>()
+                .remove::<EnemyFireCooldown>();
         }
+    }
+}
+
+// ── Enemy firing ───────────────────────────────────────────────────────────────
+
+/// Fire bullets from diving enemies toward the player at difficulty-scaled intervals.
+///
+/// Each diving enemy has its own `EnemyFireCooldown` repeating timer.  When the
+/// timer fires, a bullet is spawned aimed at the player's current position.
+pub fn enemy_fire_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    game_assets: Res<GameAssets>,
+    mut enemy_query: Query<(&Transform, &mut EnemyFireCooldown, &EnemyState)>,
+    player_query: Query<&Transform, With<PlayerShip>>,
+) {
+    let Ok(player_transform) = player_query.single() else {
+        return;
+    };
+    let player_pos = player_transform.translation.truncate();
+
+    for (transform, mut cooldown, state) in &mut enemy_query {
+        if *state != EnemyState::Diving {
+            continue;
+        }
+
+        cooldown.0.tick(time.delta());
+
+        if !cooldown.0.just_finished() {
+            continue;
+        }
+
+        let enemy_pos = transform.translation.truncate();
+        let dir = (player_pos - enemy_pos).normalize_or_zero();
+        // If somehow at the exact same position, fire straight down.
+        let dir = if dir == Vec2::ZERO { Vec2::NEG_Y } else { dir };
+
+        commands.spawn((
+            Sprite::from_image(game_assets.bullets_image.clone()),
+            Transform::from_translation(transform.translation),
+            Bullet { owner: BulletOwner::Enemy },
+            Velocity(dir * ENEMY_BULLET_SPEED),
+            Collider { half_size: Vec2::new(2.0, 4.0) },
+        ));
     }
 }
