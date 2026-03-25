@@ -15,10 +15,10 @@ use rand::Rng;
 
 use crate::assets::{enemy_sprite_index, GameAssets};
 use crate::components::{
-    Bullet, BulletOwner, Collider, DespawnTimer, EnemyFireCooldown, EnemyState, Explosion, Health,
-    SplitterPiece, SplitterType, Velocity,
+    Bullet, BulletOwner, Collider, DespawnTimer, DivePath, DivePathProgress, EnemyFireCooldown,
+    EnemyState, Explosion, Health, SplitterPiece, SplitterType,
 };
-use crate::constants::LOGICAL_HEIGHT;
+use crate::enemies::dive_paths::splitter_piece_path;
 use crate::resources::{ScoreBoard, SplitterState};
 
 // ── Stage-to-type mapping ─────────────────────────────────────────────────────
@@ -87,14 +87,9 @@ pub fn handle_splitter_bee_killed(
         SplitterType::Flagship => enemy_sprite_index::FLAGSHIP,
     };
 
-    // Three pieces fan out: left, centre, right.
-    let velocities = [
-        Vec2::new(-70.0, -90.0),
-        Vec2::new(0.0, -110.0),
-        Vec2::new(70.0, -90.0),
-    ];
-
-    for (i, &vel) in velocities.iter().enumerate() {
+    // Three pieces fan out along diverging looping arc paths (left, centre, right).
+    for i in 0u8..3 {
+        let path = splitter_piece_path(pos.truncate(), i);
         commands.spawn((
             Sprite::from_atlas_image(
                 game_assets.enemies_image.clone(),
@@ -104,35 +99,35 @@ pub fn handle_splitter_bee_killed(
                 },
             ),
             Transform::from_translation(pos),
-            SplitterPiece { splitter_type: event.splitter_type, piece_index: i as u8 },
+            SplitterPiece { splitter_type: event.splitter_type, piece_index: i },
             Health(1),
             Collider { half_size: Vec2::splat(7.0) },
-            Velocity(vel),
+            DivePath(path),
+            DivePathProgress { current_waypoint: 1 },
             EnemyState::Diving,
             EnemyFireCooldown(Timer::from_seconds(1.5, TimerMode::Repeating)),
         ));
     }
 }
 
-// ── Movement ──────────────────────────────────────────────────────────────────
+// ── Movement / completion ──────────────────────────────────────────────────────
 
-/// Move SplitterPiece entities using their `Velocity`, despawning once they
-/// leave the bottom of the screen.
+/// Despawn SplitterPiece entities when their looping arc path is exhausted.
+///
+/// Movement itself is handled by `dive_movement_system` (which processes any
+/// entity with `DivePath` + `DivePathProgress` + `EnemyState::Diving`).
+/// `dive_completion_system` is filtered to exclude `SplitterPiece`, so pieces
+/// do NOT return to formation — they are simply despawned here once the path
+/// finishes (i.e. they have flown off-screen).
 pub fn move_splitter_pieces(
     mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut Transform, &Velocity), With<SplitterPiece>>,
+    query: Query<(Entity, &DivePath, &DivePathProgress), With<SplitterPiece>>,
     mut splitter_state: ResMut<SplitterState>,
 ) {
-    let bottom = -(LOGICAL_HEIGHT / 2.0) - 24.0;
-
-    for (entity, mut transform, velocity) in &mut query {
-        transform.translation.x += velocity.0.x * time.delta_secs();
-        transform.translation.y += velocity.0.y * time.delta_secs();
-
-        if transform.translation.y < bottom {
+    for (entity, path, progress) in &query {
+        if progress.current_waypoint >= path.0.len() {
             commands.entity(entity).despawn();
-            // Piece left without being shot — count as gone (not killed).
+            // Piece exited off-screen without being shot — count as gone.
             splitter_state.pieces_alive = splitter_state.pieces_alive.saturating_sub(1);
         }
     }

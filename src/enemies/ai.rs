@@ -20,7 +20,7 @@ use rand::Rng;
 use crate::assets::GameAssets;
 use crate::components::{
     Bullet, BulletOwner, Collider, DivePath, DivePathProgress, EnemyFireCooldown, EnemyState,
-    EnemyType, FormationSlot, PlayerShip, TractorBeamRun, Velocity,
+    EnemyType, FormationSlot, PlayerShip, SplitterPiece, TractorBeamRun, Velocity,
 };
 use crate::constants::ENEMY_BULLET_SPEED;
 use crate::enemies::dive_paths::get_dive_path;
@@ -146,7 +146,7 @@ pub fn dive_completion_system(
     // their return separately.
     mut query: Query<
         (Entity, &mut EnemyState, &DivePath, &DivePathProgress),
-        Without<TractorBeamRun>,
+        (Without<TractorBeamRun>, Without<SplitterPiece>),
     >,
 ) {
     for (entity, mut state, path, progress) in &mut query {

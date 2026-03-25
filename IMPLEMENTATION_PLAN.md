@@ -69,7 +69,7 @@
 - [x] Challenging stage enemy patterns: straight lines, figure-8s, loop patterns across screen (spec: enemy-ai.md)
 - [x] Perfect bonus: award 10,000 points if all challenging-stage enemies destroyed (spec: enemy-ai.md)
 - [x] Splitter/transform enemies: starting stage 4, some enemies split into 2 on death (Scorpions/Stingrays) or become Galaxian Flagship (spec: enemy-ai.md)
-- [ ] Splitter movement: split pieces fly in diverging paths (spec: enemy-ai.md)
+- [x] Splitter movement: split pieces fly in diverging paths (spec: enemy-ai.md)
 
 ### Phase 10: Visual Effects & HUD
 - [ ] Starfield background: 50-100 stars at varying speeds (parallax layers), scrolling downward (spec: visual-polish.md)

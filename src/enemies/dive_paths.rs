@@ -211,6 +211,77 @@ fn boss_dive_left(home: Vec2) -> Vec<Vec2> {
     ]
 }
 
+// ── Splitter piece paths ──────────────────────────────────────────────────────
+//
+// Each of the three splitter pieces gets a distinct one-way arc path that fans
+// out from the spawn position, sweeps through a wide loop, and exits off-screen.
+// These are NOT closed loops — pieces are despawned when the path is exhausted.
+//
+// piece_index 0 → left piece  (counterclockwise arc, exits off left)
+// piece_index 1 → center piece (clockwise arc,       exits off bottom)
+// piece_index 2 → right piece (clockwise arc,        exits off right)
+
+/// Return the one-way flight path for a splitter piece.
+///
+/// `spawn_pos` is the world position where the SplitterBee was destroyed.
+/// `piece_index` selects one of three diverging trajectories (0 = left,
+/// 1 = centre, 2 = right).
+pub fn splitter_piece_path(spawn_pos: Vec2, piece_index: u8) -> Vec<Vec2> {
+    match piece_index {
+        0 => splitter_left_path(spawn_pos),
+        1 => splitter_center_path(spawn_pos),
+        _ => splitter_right_path(spawn_pos),
+    }
+}
+
+/// Left piece: sweeps upper-left, wide counterclockwise loop, exits off left.
+fn splitter_left_path(pos: Vec2) -> Vec<Vec2> {
+    vec![
+        pos,
+        Vec2::new(pos.x - 30.0, pos.y + 15.0), // diverge up-left from spawn
+        Vec2::new(-90.0, 50.0),                  // reach upper-left screen area
+        Vec2::new(-105.0, -30.0),                // descend left edge
+        Vec2::new(-80.0, -100.0),                // bottom-left
+        Vec2::new(0.0, -125.0),                  // cross bottom centre
+        Vec2::new(75.0, -85.0),                  // arc bottom-right
+        Vec2::new(85.0, -5.0),                   // climb right side
+        Vec2::new(45.0, 55.0),                   // arc upper-right (loop complete)
+        Vec2::new(OFF_L, 45.0),                  // exit off left
+    ]
+}
+
+/// Centre piece: slight right drift, clockwise loop, exits off the bottom.
+fn splitter_center_path(pos: Vec2) -> Vec<Vec2> {
+    vec![
+        pos,
+        Vec2::new(pos.x + 10.0, pos.y - 15.0), // slight right-down drift
+        Vec2::new(65.0, -10.0),                  // arc right, mid-screen
+        Vec2::new(85.0, -80.0),                  // right side lower
+        Vec2::new(40.0, -125.0),                 // bottom-right
+        Vec2::new(-35.0, -130.0),                // cross bottom to left
+        Vec2::new(-75.0, -70.0),                 // left side lower
+        Vec2::new(-45.0, 5.0),                   // arc back toward centre (loop complete)
+        Vec2::new(0.0, OFF_BOTTOM),              // exit off bottom
+    ]
+}
+
+/// Right piece: sweeps upper-right, wide clockwise loop, exits off right
+/// (mirror of the left piece).
+fn splitter_right_path(pos: Vec2) -> Vec<Vec2> {
+    vec![
+        pos,
+        Vec2::new(pos.x + 30.0, pos.y + 15.0), // diverge up-right from spawn
+        Vec2::new(90.0, 50.0),                   // reach upper-right screen area
+        Vec2::new(105.0, -30.0),                 // descend right edge
+        Vec2::new(80.0, -100.0),                 // bottom-right
+        Vec2::new(0.0, -125.0),                  // cross bottom centre
+        Vec2::new(-75.0, -85.0),                 // arc bottom-left
+        Vec2::new(-85.0, -5.0),                  // climb left side
+        Vec2::new(-45.0, 55.0),                  // arc upper-left (loop complete)
+        Vec2::new(OFF_R, 45.0),                  // exit off right
+    ]
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
