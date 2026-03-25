@@ -59,7 +59,7 @@
 ### Phase 8: Boss Galaga Tractor Beam
 - [x] Tractor beam trigger: Boss Galaga (2+ on field) can initiate capture dive; requires no player bullet in flight (spec: enemy-ai.md)
 - [x] Tractor beam beam entity: fan-shaped cyan visual, pulses, locks player movement during capture (spec: enemy-ai.md)
-- [ ] Player capture: player ship entity transitions to CapturedShip, attaches to Boss, formation continues (spec: enemy-ai.md)
+- [x] Player capture: player ship entity transitions to CapturedShip, attaches to Boss, formation continues (spec: enemy-ai.md)
 - [ ] Dual fighter: spawn second player ship; both ships fire when dual fighter active (4 bullets max) (spec: enemy-ai.md)
 - [ ] Dual fighter rescue: player destroys Boss during dive → captured ship freed → joins player as dual fighter (spec: enemy-ai.md)
 - [ ] Dual fighter death: losing dual fighter reverts to single ship (spec: enemy-ai.md)

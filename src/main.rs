@@ -22,7 +22,7 @@ use assets::GameAssets;
 use collision::{bullet_enemy_collision, diving_enemy_player_collision, enemy_bullet_player_collision};
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system, enemy_fire_system, group_attack_system};
-use enemies::tractor_beam::{boss_tractor_decision, pulse_tractor_beam_system, spawn_tractor_beam_system};
+use enemies::tractor_beam::{boss_tractor_decision, player_capture_system, pulse_tractor_beam_system, spawn_tractor_beam_system};
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
@@ -30,7 +30,7 @@ use player::{
     handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
     RespawnTimer,
 };
-use resources::{DifficultyConfig, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
+use resources::{DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
 use states::GameState;
 use waves::{check_stage_complete, tick_stage_transition, StageClearTimer};
@@ -57,6 +57,7 @@ fn main() {
         .init_resource::<GroupAttackCoordinator>()
         .init_resource::<StageClearTimer>()
         .init_resource::<TractorBeamCoordinator>()
+        .init_resource::<DualFighterState>()
         .add_observer(handle_score_event)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
         .add_loading_state(
@@ -136,6 +137,7 @@ fn main() {
                 boss_tractor_decision,
                 spawn_tractor_beam_system,
                 pulse_tractor_beam_system,
+                player_capture_system,
                 dive_movement_system,
                 dive_completion_system,
                 enemy_fire_system,
@@ -179,11 +181,13 @@ fn reset_wave_state(
     mut difficulty: ResMut<DifficultyConfig>,
     mut group_coordinator: ResMut<GroupAttackCoordinator>,
     mut tractor_beam: ResMut<TractorBeamCoordinator>,
+    mut dual_fighter: ResMut<DualFighterState>,
 ) {
     *wave_controller = WaveController::default();
     *stage_clear_timer = StageClearTimer::default();
     *group_coordinator = GroupAttackCoordinator::default();
     *tractor_beam = TractorBeamCoordinator::default();
+    *dual_fighter = DualFighterState::default();
     waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 

@@ -4,11 +4,14 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::components::{
-    Bullet, BulletOwner, DivePath, DivePathProgress, EnemyState, EnemyType, FormationSlot,
-    PlayerFrozen, PlayerShip, TractorBeam, TractorBeamRun, TractorBeamSpawned,
+    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DivePath, DivePathProgress,
+    EnemyState, EnemyType, FormationSlot, PlayerFrozen, PlayerShip, TractorBeam, TractorBeamRun,
+    TractorBeamSpawned,
 };
 use crate::enemies::dive_paths::boss_tractor_beam_path;
-use crate::resources::TractorBeamCoordinator;
+use crate::player::death::RespawnTimer;
+use crate::resources::{DualFighterState, ScoreBoard, TractorBeamCoordinator};
+use crate::states::GameState;
 
 // ── Tractor beam trigger ───────────────────────────────────────────────────────
 
@@ -188,4 +191,113 @@ pub fn pulse_tractor_beam_system(
         let alpha = 0.2 + 0.6 * (beam.pulse_phase.sin() * 0.5 + 0.5);
         sprite.color = Color::srgba(0.0, 1.0, 1.0, alpha);
     }
+}
+
+// ── Player capture ─────────────────────────────────────────────────────────
+
+/// Speed at which the player ship is pulled upward by the tractor beam (units/sec).
+const CAPTURE_PULL_SPEED: f32 = 55.0;
+
+/// Delay before the player respawns after being captured.
+const CAPTURE_RESPAWN_DELAY_SECS: f32 = 2.5;
+
+/// Pulls the frozen player ship upward toward the tractor-beam Boss.
+///
+/// Once the player reaches the Boss, the capture sequence completes:
+///
+/// 1. The player entity loses `PlayerShip` and gains `CapturedShip` +
+///    `CapturedBy(boss)`.  Its sprite is tinted red.
+/// 2. The player entity is re-parented to the Boss with a fixed local offset
+///    so the captured ship follows the Boss as it returns to formation.
+/// 3. The tractor-beam visual children are despawned.
+/// 4. The Boss receives a return path back to its formation slot and
+///    `TractorBeamRun` / `TractorBeamSpawned` are removed so that
+///    `dive_completion_system` can handle the return-to-formation transition.
+/// 5. A life is deducted; the respawn timer is started (or `GameOver` if no
+///    lives remain).  `TractorBeamCoordinator::active` is cleared.
+pub fn player_capture_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut coordinator: ResMut<TractorBeamCoordinator>,
+    mut dual_fighter: ResMut<DualFighterState>,
+    mut score_board: ResMut<ScoreBoard>,
+    mut respawn_timer: ResMut<RespawnTimer>,
+    mut next_state: ResMut<NextState<GameState>>,
+    boss_query: Query<
+        (Entity, &Transform, &FormationSlot),
+        (With<TractorBeamSpawned>, With<TractorBeamRun>),
+    >,
+    mut player_query: Query<
+        (Entity, &mut Transform, &mut Sprite),
+        (With<PlayerShip>, With<PlayerFrozen>),
+    >,
+) {
+    let Ok((boss_entity, boss_transform, boss_slot)) = boss_query.single() else {
+        return;
+    };
+    let Ok((player_entity, mut player_transform, mut player_sprite)) =
+        player_query.single_mut()
+    else {
+        return;
+    };
+
+    let boss_y = boss_transform.translation.y;
+    let player_y = player_transform.translation.y;
+
+    // Tint the ship red while it is being pulled up.
+    player_sprite.color = Color::srgb(1.0, 0.3, 0.3);
+
+    // The ship is "captured" once it reaches 14 units below the boss centre.
+    let capture_threshold = boss_y - 14.0;
+
+    if player_y < capture_threshold {
+        // Still in transit — pull upward.
+        let step = CAPTURE_PULL_SPEED * time.delta_secs();
+        player_transform.translation.y = (player_y + step).min(capture_threshold);
+        return;
+    }
+
+    // ── Capture complete ────────────────────────────────────────────────────
+
+    let home_pos = boss_slot.home_pos;
+    let current_boss_pos = boss_transform.translation.truncate();
+
+    // Convert the player entity to a captured ship parented to the Boss.
+    // The local transform places it 14 px below the Boss origin so it
+    // appears to be held just beneath it.
+    commands
+        .entity(player_entity)
+        .remove::<PlayerShip>()
+        .remove::<PlayerFrozen>()
+        .remove::<Collider>()
+        .insert(CapturedShip)
+        .insert(CapturedBy(boss_entity))
+        .insert(Transform::from_xyz(0.0, -14.0, 0.0));
+
+    // Remove the beam visual children, then attach the captured ship.
+    commands
+        .entity(boss_entity)
+        .despawn_related::<Children>()
+        .add_child(player_entity)
+        .remove::<TractorBeamRun>()
+        .remove::<TractorBeamSpawned>()
+        // Give the boss a straight return path to its formation slot.
+        // dive_completion_system will revert it to InFormation once done.
+        .insert(DivePath(vec![current_boss_pos, home_pos]))
+        .insert(DivePathProgress { current_waypoint: 1 });
+    // EnemyState stays Diving; dive_completion_system handles the InFormation transition.
+
+    // Record captured ship for later dual-fighter rescue logic.
+    dual_fighter.captured_ship = Some(player_entity);
+
+    // Decrement lives and trigger respawn or game over.
+    score_board.lives = score_board.lives.saturating_sub(1);
+    if score_board.lives == 0 {
+        next_state.set(GameState::GameOver);
+    } else {
+        respawn_timer.0 =
+            Some(Timer::from_seconds(CAPTURE_RESPAWN_DELAY_SECS, TimerMode::Once));
+    }
+
+    coordinator.active = false;
 }
