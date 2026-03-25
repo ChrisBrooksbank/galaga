@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
 use crate::assets::GameAssets;
-use crate::components::{Bullet, BulletOwner, Collider, FireCooldown, PlayerShip, Velocity};
-use crate::constants::{LOGICAL_HEIGHT, LOGICAL_WIDTH, MAX_PLAYER_BULLETS, PLAYER_BULLET_SPEED};
+use crate::components::{Bullet, BulletOwner, Collider, DualFighter, FireCooldown, PlayerShip, Velocity};
+use crate::constants::{LOGICAL_HEIGHT, LOGICAL_WIDTH, MAX_DUAL_BULLETS, MAX_PLAYER_BULLETS, PLAYER_BULLET_SPEED};
+use crate::resources::DualFighterState;
 
-/// Y offset from player center where bullet spawns.
+/// Y offset from player centre where a bullet spawns.
 const BULLET_SPAWN_OFFSET_Y: f32 = 12.0;
 
 pub fn player_shoot(
@@ -12,7 +13,9 @@ pub fn player_shoot(
     time: Res<Time>,
     mut commands: Commands,
     game_assets: Res<GameAssets>,
+    dual_state: Res<DualFighterState>,
     mut player_query: Query<(&Transform, &mut FireCooldown), With<PlayerShip>>,
+    dual_query: Query<&Transform, With<DualFighter>>,
     bullet_query: Query<&Bullet>,
 ) {
     let Ok((player_transform, mut cooldown)) = player_query.single_mut() else {
@@ -33,10 +36,14 @@ pub fn player_shoot(
         .iter()
         .filter(|b| b.owner == BulletOwner::Player)
         .count();
-    if player_bullet_count >= MAX_PLAYER_BULLETS {
+
+    let max_bullets = if dual_state.active { MAX_DUAL_BULLETS } else { MAX_PLAYER_BULLETS };
+
+    if player_bullet_count >= max_bullets {
         return;
     }
 
+    // Fire from the primary ship.
     let bullet_pos = Vec3::new(
         player_transform.translation.x,
         player_transform.translation.y + BULLET_SPAWN_OFFSET_Y,
@@ -52,6 +59,25 @@ pub fn player_shoot(
     ));
 
     cooldown.0.reset();
+
+    // When dual mode is active, also fire from the secondary ship if the
+    // bullet budget allows one more (we already fired one above).
+    if dual_state.active && player_bullet_count + 1 < max_bullets {
+        if let Ok(dual_transform) = dual_query.single() {
+            let dual_bullet_pos = Vec3::new(
+                dual_transform.translation.x,
+                dual_transform.translation.y + BULLET_SPAWN_OFFSET_Y,
+                0.0,
+            );
+            commands.spawn((
+                Sprite::from_image(game_assets.bullets_image.clone()),
+                Transform::from_translation(dual_bullet_pos),
+                Bullet { owner: BulletOwner::Player },
+                Velocity(Vec2::new(0.0, PLAYER_BULLET_SPEED)),
+                Collider { half_size: Vec2::new(2.0, 4.0) },
+            ));
+        }
+    }
 }
 
 pub fn move_bullets(

@@ -175,6 +175,13 @@ pub struct TractorBeam {
 #[derive(Component)]
 pub struct PlayerFrozen;
 
+// --- Dual fighter ---
+
+/// Marker for the secondary player ship active in dual-fighter mode.
+/// The ship mirrors the primary `PlayerShip` position with a fixed X offset.
+#[derive(Component)]
+pub struct DualFighter;
+
 // --- Animation ---
 
 #[derive(Component)]

@@ -27,8 +27,8 @@ use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
 use player::{
-    handle_player_death, move_bullets, player_movement, player_shoot, spawn_player, tick_respawn,
-    RespawnTimer,
+    dual_fighter_follow, handle_player_death, manage_dual_fighter, move_bullets, player_movement,
+    player_shoot, spawn_player, tick_respawn, RespawnTimer,
 };
 use resources::{DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
@@ -81,6 +81,13 @@ fn main() {
         .add_systems(
             Update,
             (player_movement, player_shoot, move_bullets).run_if(in_state(GameState::Playing)),
+        )
+        // Dual fighter: manage secondary ship and keep it aligned with the player
+        .add_systems(
+            Update,
+            (manage_dual_fighter, dual_fighter_follow)
+                .chain()
+                .run_if(in_state(GameState::Playing)),
         )
         // Collision detection (only while Playing)
         .add_systems(
