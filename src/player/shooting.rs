@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::assets::GameAssets;
 use crate::components::{Bullet, BulletOwner, Collider, FireCooldown, PlayerShip, Velocity};
-use crate::constants::{MAX_PLAYER_BULLETS, PLAYER_BULLET_SPEED};
+use crate::constants::{LOGICAL_HEIGHT, LOGICAL_WIDTH, MAX_PLAYER_BULLETS, PLAYER_BULLET_SPEED};
 
 /// Y offset from player center where bullet spawns.
 const BULLET_SPAWN_OFFSET_Y: f32 = 12.0;
@@ -52,4 +52,24 @@ pub fn player_shoot(
     ));
 
     cooldown.0.reset();
+}
+
+pub fn move_bullets(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Transform, &Velocity), With<Bullet>>,
+) {
+    let half_w = LOGICAL_WIDTH / 2.0;
+    let half_h = LOGICAL_HEIGHT / 2.0;
+
+    for (entity, mut transform, velocity) in &mut query {
+        transform.translation.x += velocity.0.x * time.delta_secs();
+        transform.translation.y += velocity.0.y * time.delta_secs();
+
+        let x = transform.translation.x;
+        let y = transform.translation.y;
+        if y > half_h || y < -half_h || x > half_w || x < -half_w {
+            commands.entity(entity).despawn();
+        }
+    }
 }

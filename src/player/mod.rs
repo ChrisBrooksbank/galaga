@@ -4,5 +4,5 @@ pub mod shooting;
 pub mod spawn;
 
 pub use movement::player_movement;
-pub use shooting::player_shoot;
+pub use shooting::{move_bullets, player_shoot};
 pub use spawn::spawn_player;

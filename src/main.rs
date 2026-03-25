@@ -19,7 +19,7 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
-use player::{player_movement, player_shoot, spawn_player};
+use player::{move_bullets, player_movement, player_shoot, spawn_player};
 use states::GameState;
 
 fn main() {
@@ -54,7 +54,7 @@ fn main() {
         // Player systems (only while Playing)
         .add_systems(
             Update,
-            (player_movement, player_shoot).run_if(in_state(GameState::Playing)),
+            (player_movement, player_shoot, move_bullets).run_if(in_state(GameState::Playing)),
         )
         .run();
 }
