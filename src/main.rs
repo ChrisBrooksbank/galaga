@@ -41,7 +41,7 @@ use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig,
 use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
-use audio::handle_audio_events;
+use audio::{add_music_systems, handle_audio_events};
 pub use audio::GameAudioEvent;
 use states::GameState;
 use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
@@ -55,7 +55,8 @@ use waves::{
 };
 
 fn main() {
-    App::new()
+    let mut app = App::new();
+    app
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Galaga".to_string(),
@@ -89,7 +90,10 @@ fn main() {
             LoadingState::new(GameState::Loading)
                 .continue_to_state(GameState::Menu)
                 .load_collection::<GameAssets>(),
-        )
+        );
+    // Register music channel and music-transition systems
+    add_music_systems(&mut app);
+    app
         .add_systems(Startup, (setup_camera, spawn_starfield))
         // Starfield scrolls in all active game states
         .add_systems(
