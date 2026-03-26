@@ -45,6 +45,7 @@ use states::GameState;
 use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
 use ui::hud::{spawn_hud, update_hud};
 use ui::menu::{blink_press_start, despawn_menu, spawn_menu};
+use ui::stage_intro::{arm_stage_intro, tick_stage_intro, StageIntroTimer};
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
     move_challenging_enemies, spawn_challenging_stage_patterns, tick_stage_transition,
@@ -77,6 +78,7 @@ fn main() {
         .init_resource::<ChallengingStageData>()
         .init_resource::<ChallengingStageSpawner>()
         .init_resource::<SplitterState>()
+        .init_resource::<StageIntroTimer>()
         .add_observer(handle_score_event)
         .add_observer(handle_splitter_bee_killed)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
@@ -100,7 +102,7 @@ fn main() {
         // Reset game state, spawn player and formation when entering Playing
         .add_systems(
             OnEnter(GameState::Playing),
-            (init_scoreboard, reset_wave_state, spawn_player, spawn_formation, spawn_hud).chain(),
+            (init_scoreboard, reset_wave_state, spawn_player, spawn_formation, spawn_hud, arm_stage_intro).chain(),
         )
         // HUD update: keep score, lives, and stage in sync
         .add_systems(
@@ -170,6 +172,11 @@ fn main() {
             (check_stage_complete, tick_stage_transition)
                 .chain()
                 .run_if(in_state(GameState::Playing)),
+        )
+        // Stage intro overlay
+        .add_systems(
+            Update,
+            tick_stage_intro.run_if(in_state(GameState::Playing)),
         )
         // Formation breathing animation (only while Playing)
         .add_systems(

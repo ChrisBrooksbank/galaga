@@ -5,6 +5,7 @@ use crate::components::EnemyType;
 use crate::enemies::spawn::do_spawn_formation;
 use crate::resources::{DifficultyConfig, Formation, ScoreBoard, WaveController};
 use crate::states::GameState;
+use crate::ui::stage_intro::StageIntroTimer;
 use crate::waves::challenging::is_challenging_stage;
 use crate::waves::difficulty::update_difficulty_for_stage;
 
@@ -47,6 +48,7 @@ pub fn tick_stage_transition(
     mut difficulty: ResMut<DifficultyConfig>,
     mut wave_controller: ResMut<WaveController>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut intro_timer: ResMut<StageIntroTimer>,
 ) {
     let Some(ref mut timer) = stage_clear_timer.0 else {
         return;
@@ -68,6 +70,9 @@ pub fn tick_stage_transition(
         // The challenging stage systems handle enemy patterns and completion.
         next_state.set(GameState::ChallengingStage);
     } else {
+        // Show "STAGE X" intro overlay before enemies enter.
+        intro_timer.trigger();
+
         // Reset the formation grid (enemy entities are already despawned by the collision system).
         *formation = Formation::new();
 

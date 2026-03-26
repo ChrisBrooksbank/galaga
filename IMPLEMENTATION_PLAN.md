@@ -77,7 +77,7 @@
 - [x] HUD: score (top-left), high-score (top-center), lives icons (bottom-left), stage flags (bottom-right) (spec: visual-polish.md)
 - [x] Menu screen: "GALAGA" title, "PRESS SPACE TO START", high score display; transition to Playing on Space (spec: visual-polish.md)
 - [x] Game over screen: "GAME OVER" text, final score, stage reached; return to Menu after delay (spec: visual-polish.md)
-- [ ] Stage intro screen: "STAGE X" display with brief pause before enemies enter (spec: visual-polish.md)
+- [x] Stage intro screen: "STAGE X" display with brief pause before enemies enter (spec: visual-polish.md)
 
 ### Phase 11: Audio System
 - [ ] Integrate bevy_kira_audio; define AudioEvent enum for all 10 SFX triggers (spec: audio.md)
