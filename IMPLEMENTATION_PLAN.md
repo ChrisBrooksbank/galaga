@@ -4,7 +4,7 @@
 
 - Planning iterations: 1
 - Build iterations: 6
-- Last updated: 2026-03-25
+- Last updated: 2026-03-26
 
 ## Tasks
 
@@ -73,7 +73,7 @@
 
 ### Phase 10: Visual Effects & HUD
 - [x] Starfield background: 50-100 stars at varying speeds (parallax layers), scrolling downward (spec: visual-polish.md)
-- [ ] Explosion animation system: 4-6 frame sprite animation, auto-despawn on complete (spec: visual-polish.md)
+- [x] Explosion animation system: 4-6 frame sprite animation, auto-despawn on complete (spec: visual-polish.md)
 - [ ] HUD: score (top-left), high-score (top-center), lives icons (bottom-left), stage flags (bottom-right) (spec: visual-polish.md)
 - [ ] Menu screen: "GALAGA" title, "PRESS SPACE TO START", high score display; transition to Playing on Space (spec: visual-polish.md)
 - [ ] Game over screen: "GAME OVER" text, final score, stage reached; return to Menu after delay (spec: visual-polish.md)

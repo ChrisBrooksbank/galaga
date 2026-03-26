@@ -40,6 +40,7 @@ use player::{
 use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, SplitterState, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
+use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
 use states::GameState;
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
@@ -187,6 +188,16 @@ fn main() {
             )
                 .chain()
                 .run_if(in_state(GameState::Playing)),
+        )
+        // Explosion animation and despawn timers (all active gameplay states + game over)
+        .add_systems(
+            Update,
+            (init_explosion_sprites, animate_explosions, tick_despawn_timers)
+                .run_if(
+                    in_state(GameState::Playing)
+                        .or(in_state(GameState::ChallengingStage))
+                        .or(in_state(GameState::GameOver)),
+                ),
         )
         // Challenging stage: initialise on entry, spawn patterns and check completion each frame
         .add_systems(
