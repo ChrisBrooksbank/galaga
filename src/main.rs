@@ -42,6 +42,7 @@ use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
 use states::GameState;
+use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
 use ui::hud::{spawn_hud, update_hud};
 use ui::menu::{blink_press_start, despawn_menu, spawn_menu};
 use waves::{
@@ -119,6 +120,10 @@ fn main() {
             Update,
             (blink_press_start, menu_to_playing).run_if(in_state(GameState::Menu)),
         )
+        // Spawn game-over UI on entering GameOver state; despawn on leaving
+        .add_systems(OnEnter(GameState::GameOver), spawn_game_over)
+        .add_systems(OnExit(GameState::GameOver), despawn_game_over)
+        .add_systems(Update, game_over_input.run_if(in_state(GameState::GameOver)))
         // Playing → Paused on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         // Paused → Playing on Escape
