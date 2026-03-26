@@ -39,6 +39,7 @@ use player::{
 };
 use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, SplitterState, TractorBeamCoordinator, WaveController};
 use scoring::handle_score_event;
+use effects::starfield::{scroll_starfield, spawn_starfield};
 use states::GameState;
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
@@ -80,7 +81,18 @@ fn main() {
                 .continue_to_state(GameState::Menu)
                 .load_collection::<GameAssets>(),
         )
-        .add_systems(Startup, setup_camera)
+        .add_systems(Startup, (setup_camera, spawn_starfield))
+        // Starfield scrolls in all active game states
+        .add_systems(
+            Update,
+            scroll_starfield.run_if(
+                in_state(GameState::Menu)
+                    .or(in_state(GameState::Playing))
+                    .or(in_state(GameState::Paused))
+                    .or(in_state(GameState::ChallengingStage))
+                    .or(in_state(GameState::GameOver)),
+            ),
+        )
         // Reset game state, spawn player and formation when entering Playing
         .add_systems(
             OnEnter(GameState::Playing),
