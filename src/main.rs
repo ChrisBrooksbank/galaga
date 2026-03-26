@@ -41,6 +41,8 @@ use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig,
 use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
+use audio::handle_audio_events;
+pub use audio::GameAudioEvent;
 use states::GameState;
 use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
 use ui::hud::{spawn_hud, update_hud};
@@ -79,6 +81,7 @@ fn main() {
         .init_resource::<ChallengingStageSpawner>()
         .init_resource::<SplitterState>()
         .init_resource::<StageIntroTimer>()
+        .add_observer(handle_audio_events)
         .add_observer(handle_score_event)
         .add_observer(handle_splitter_bee_killed)
         // Asset loading: transition Loading → Menu automatically when all assets are ready
