@@ -42,6 +42,7 @@ use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
 use states::GameState;
+use ui::hud::{spawn_hud, update_hud};
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
     move_challenging_enemies, spawn_challenging_stage_patterns, tick_stage_transition,
@@ -97,7 +98,17 @@ fn main() {
         // Reset game state, spawn player and formation when entering Playing
         .add_systems(
             OnEnter(GameState::Playing),
-            (init_scoreboard, reset_wave_state, spawn_player, spawn_formation).chain(),
+            (init_scoreboard, reset_wave_state, spawn_player, spawn_formation, spawn_hud).chain(),
+        )
+        // HUD update: keep score, lives, and stage in sync
+        .add_systems(
+            Update,
+            update_hud.run_if(
+                in_state(GameState::Playing)
+                    .or(in_state(GameState::Paused))
+                    .or(in_state(GameState::ChallengingStage))
+                    .or(in_state(GameState::GameOver)),
+            ),
         )
         // Menu → Playing on Space
         .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
