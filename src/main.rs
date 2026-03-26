@@ -43,6 +43,7 @@ use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
 use states::GameState;
 use ui::hud::{spawn_hud, update_hud};
+use ui::menu::{blink_press_start, despawn_menu, spawn_menu};
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
     move_challenging_enemies, spawn_challenging_stage_patterns, tick_stage_transition,
@@ -110,8 +111,14 @@ fn main() {
                     .or(in_state(GameState::GameOver)),
             ),
         )
-        // Menu → Playing on Space
-        .add_systems(Update, menu_to_playing.run_if(in_state(GameState::Menu)))
+        // Spawn menu UI on entering Menu state; despawn on leaving
+        .add_systems(OnEnter(GameState::Menu), spawn_menu)
+        .add_systems(OnExit(GameState::Menu), despawn_menu)
+        // Menu blink and transition
+        .add_systems(
+            Update,
+            (blink_press_start, menu_to_playing).run_if(in_state(GameState::Menu)),
+        )
         // Playing → Paused on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
         // Paused → Playing on Escape
