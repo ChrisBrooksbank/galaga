@@ -224,6 +224,22 @@ pub struct SplitterState {
     pub bonus_awarded: bool,
 }
 
+/// Separate volume levels for sound effects and music.
+///
+/// Adjusted from the pause menu; applied to every audio play call and to
+/// the music channel in real time via `sync_music_volume`.
+#[derive(Resource)]
+pub struct VolumeSettings {
+    pub sfx_volume: f64,
+    pub music_volume: f64,
+}
+
+impl Default for VolumeSettings {
+    fn default() -> Self {
+        Self { sfx_volume: 1.0, music_volume: 0.7 }
+    }
+}
+
 /// Coordinates timed group dive attacks for Bee and Butterfly squads.
 ///
 /// A group attack launches 1–4 enemies of the same type simultaneously,

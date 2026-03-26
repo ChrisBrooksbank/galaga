@@ -83,7 +83,7 @@
 - [x] Integrate bevy_kira_audio; define AudioEvent enum for all 10 SFX triggers (spec: audio.md)
 - [x] SFX playback system: handle AudioEvents → play correct sound (shoot, explosion-small, explosion-large, tractor-beam, capture, rescued, bonus, extra-life, stage-clear, insert-coin) (spec: audio.md)
 - [x] Music state manager: track current MusicState, cross-fade/stop-start between tracks on GameState transitions (spec: audio.md)
-- [ ] Volume control: separate SFX volume and music volume resources, adjustable from pause menu (spec: audio.md)
+- [x] Volume control: separate SFX volume and music volume resources, adjustable from pause menu (spec: audio.md)
 
 ## Completed
 

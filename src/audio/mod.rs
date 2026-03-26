@@ -12,7 +12,19 @@ use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 
 use crate::assets::GameAssets;
+use crate::resources::VolumeSettings;
 use crate::states::GameState;
+
+/// Convert a linear amplitude value (0.0–1.0) to decibels (f32) for kira.
+///
+/// `0.0` amplitude → -60 dB (silence); `1.0` amplitude → 0 dB (full volume).
+fn amplitude_to_db(amplitude: f64) -> f32 {
+    if amplitude <= 0.0 {
+        -60.0
+    } else {
+        (20.0 * amplitude.log10()) as f32
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Music channel
@@ -75,8 +87,10 @@ pub fn handle_audio_events(
     trigger: On<GameAudioEvent>,
     audio: Res<Audio>,
     assets: Option<Res<GameAssets>>,
+    volume_settings: Option<Res<VolumeSettings>>,
 ) {
     let Some(assets) = assets else { return };
+    let sfx_vol = volume_settings.as_deref().map(|v| v.sfx_volume).unwrap_or(1.0);
 
     let handle = match trigger.event() {
         GameAudioEvent::PlayerShoot => assets.sfx_shoot.clone(),
@@ -97,7 +111,20 @@ pub fn handle_audio_events(
         GameAudioEvent::GameOver => assets.sfx_explosion_large.clone(),
     };
 
-    audio.play(handle);
+    audio.play(handle).with_volume(amplitude_to_db(sfx_vol));
+}
+
+/// Updates the music channel volume whenever `VolumeSettings` changes.
+///
+/// Run this in any state where the pause menu may be open so volume
+/// adjustments take effect immediately on the currently playing track.
+pub fn sync_music_volume(
+    music: Res<AudioChannel<MusicChannel>>,
+    volume_settings: Res<VolumeSettings>,
+) {
+    if volume_settings.is_changed() {
+        music.set_volume(amplitude_to_db(volume_settings.music_volume));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +135,12 @@ pub fn handle_audio_events(
 pub fn music_on_enter_menu(
     music: Res<AudioChannel<MusicChannel>>,
     assets: Option<Res<GameAssets>>,
+    volume_settings: Option<Res<VolumeSettings>>,
 ) {
     let Some(assets) = assets else { return };
+    let vol = volume_settings.as_deref().map(|v| v.music_volume).unwrap_or(0.7);
     music.stop();
-    music.play(assets.music_title_theme.clone()).looped();
+    music.play(assets.music_title_theme.clone()).looped().with_volume(amplitude_to_db(vol));
 }
 
 /// Plays the gameplay loop (looped) when the Playing state is entered.
@@ -119,30 +148,36 @@ pub fn music_on_enter_menu(
 pub fn music_on_enter_playing(
     music: Res<AudioChannel<MusicChannel>>,
     assets: Option<Res<GameAssets>>,
+    volume_settings: Option<Res<VolumeSettings>>,
 ) {
     let Some(assets) = assets else { return };
+    let vol = volume_settings.as_deref().map(|v| v.music_volume).unwrap_or(0.7);
     music.stop();
-    music.play(assets.music_gameplay_loop.clone()).looped();
+    music.play(assets.music_gameplay_loop.clone()).looped().with_volume(amplitude_to_db(vol));
 }
 
 /// Swaps to the challenging-stage music (looped) on entering ChallengingStage.
 pub fn music_on_enter_challenging(
     music: Res<AudioChannel<MusicChannel>>,
     assets: Option<Res<GameAssets>>,
+    volume_settings: Option<Res<VolumeSettings>>,
 ) {
     let Some(assets) = assets else { return };
+    let vol = volume_settings.as_deref().map(|v| v.music_volume).unwrap_or(0.7);
     music.stop();
-    music.play(assets.music_challenging_stage.clone()).looped();
+    music.play(assets.music_challenging_stage.clone()).looped().with_volume(amplitude_to_db(vol));
 }
 
 /// Plays the game-over jingle (one-shot) on entering GameOver.
 pub fn music_on_enter_game_over(
     music: Res<AudioChannel<MusicChannel>>,
     assets: Option<Res<GameAssets>>,
+    volume_settings: Option<Res<VolumeSettings>>,
 ) {
     let Some(assets) = assets else { return };
+    let vol = volume_settings.as_deref().map(|v| v.music_volume).unwrap_or(0.7);
     music.stop();
-    music.play(assets.music_game_over.clone());
+    music.play(assets.music_game_over.clone()).with_volume(amplitude_to_db(vol));
 }
 
 /// Pauses background music while the game is paused.
@@ -165,5 +200,7 @@ pub fn add_music_systems(app: &mut App) {
         .add_systems(OnEnter(GameState::ChallengingStage), music_on_enter_challenging)
         .add_systems(OnEnter(GameState::GameOver), music_on_enter_game_over)
         .add_systems(OnEnter(GameState::Paused), music_on_enter_paused)
-        .add_systems(OnExit(GameState::Paused), music_on_exit_paused);
+        .add_systems(OnExit(GameState::Paused), music_on_exit_paused)
+        // Sync music channel volume whenever VolumeSettings changes (e.g. from pause menu)
+        .add_systems(Update, sync_music_volume.run_if(in_state(GameState::Paused)));
 }

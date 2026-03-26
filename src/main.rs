@@ -37,7 +37,7 @@ use player::{
     dual_fighter_follow, handle_player_death, manage_dual_fighter, move_bullets, player_movement,
     player_shoot, spawn_player, tick_respawn, RespawnTimer,
 };
-use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, SplitterState, TractorBeamCoordinator, WaveController};
+use resources::{ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, DualFighterState, Formation, GroupAttackCoordinator, ScoreBoard, SplitterState, TractorBeamCoordinator, VolumeSettings, WaveController};
 use scoring::handle_score_event;
 use effects::starfield::{scroll_starfield, spawn_starfield};
 use effects::{animate_explosions, init_explosion_sprites, tick_despawn_timers};
@@ -47,6 +47,7 @@ use states::GameState;
 use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
 use ui::hud::{spawn_hud, update_hud};
 use ui::menu::{blink_press_start, despawn_menu, spawn_menu};
+use ui::pause::{despawn_pause_menu, pause_menu_input, spawn_pause_menu, update_pause_volume_labels, PauseSelection};
 use ui::stage_intro::{arm_stage_intro, tick_stage_intro, StageIntroTimer};
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
@@ -82,6 +83,8 @@ fn main() {
         .init_resource::<ChallengingStageSpawner>()
         .init_resource::<SplitterState>()
         .init_resource::<StageIntroTimer>()
+        .init_resource::<VolumeSettings>()
+        .init_resource::<PauseSelection>()
         .add_observer(handle_audio_events)
         .add_observer(handle_score_event)
         .add_observer(handle_splitter_bee_killed)
@@ -135,8 +138,14 @@ fn main() {
         .add_systems(Update, game_over_input.run_if(in_state(GameState::GameOver)))
         // Playing → Paused on Escape
         .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
-        // Paused → Playing on Escape
-        .add_systems(Update, toggle_pause.run_if(in_state(GameState::Paused)))
+        // Paused: spawn/despawn pause menu, handle input, update labels
+        .add_systems(OnEnter(GameState::Paused), spawn_pause_menu)
+        .add_systems(OnExit(GameState::Paused), despawn_pause_menu)
+        .add_systems(
+            Update,
+            (pause_menu_input, update_pause_volume_labels, toggle_pause)
+                .run_if(in_state(GameState::Paused)),
+        )
         // Player movement and shooting (Playing and ChallengingStage)
         .add_systems(
             Update,
