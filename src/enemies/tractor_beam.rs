@@ -228,11 +228,11 @@ pub fn player_capture_system(
     mut next_state: ResMut<NextState<GameState>>,
     boss_query: Query<
         (Entity, &Transform, &FormationSlot),
-        (With<TractorBeamSpawned>, With<TractorBeamRun>),
+        (With<TractorBeamSpawned>, With<TractorBeamRun>, Without<PlayerShip>),
     >,
     mut player_query: Query<
         (Entity, &mut Transform, &mut Sprite),
-        (With<PlayerShip>, With<PlayerFrozen>),
+        (With<PlayerShip>, With<PlayerFrozen>, Without<TractorBeamRun>),
     >,
 ) {
     let Ok((boss_entity, boss_transform, boss_slot)) = boss_query.single() else {

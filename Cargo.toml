@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.18", features = ["default"] }
 bevy_rapier2d = { version = "0.33", features = ["simd-stable"] }
-bevy_kira_audio = "0.25"
+bevy_kira_audio = { version = "0.25", features = ["ogg", "wav"] }
 bevy_asset_loader = { version = "0.25", features = ["2d"] }
 rand = "0.8"
 
