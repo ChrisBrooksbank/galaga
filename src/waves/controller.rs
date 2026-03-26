@@ -8,6 +8,7 @@ use crate::states::GameState;
 use crate::ui::stage_intro::StageIntroTimer;
 use crate::waves::challenging::is_challenging_stage;
 use crate::waves::difficulty::update_difficulty_for_stage;
+use crate::GameAudioEvent;
 
 const STAGE_CLEAR_DELAY_SECS: f32 = 2.0;
 
@@ -20,6 +21,7 @@ pub struct StageClearTimer(pub Option<Timer>);
 /// The `WaveController.enemies_ever_spawned` guard prevents this from triggering at
 /// game startup, before the first wave has populated the field.
 pub fn check_stage_complete(
+    mut commands: Commands,
     enemy_query: Query<(), With<EnemyType>>,
     wave_controller: Res<WaveController>,
     mut stage_clear_timer: ResMut<StageClearTimer>,
@@ -34,6 +36,7 @@ pub fn check_stage_complete(
     }
     if enemy_query.is_empty() {
         stage_clear_timer.0 = Some(Timer::from_seconds(STAGE_CLEAR_DELAY_SECS, TimerMode::Once));
+        commands.trigger(GameAudioEvent::StageClear);
     }
 }
 

@@ -4,6 +4,7 @@ use crate::assets::GameAssets;
 use crate::components::{Bullet, BulletOwner, DespawnTimer, Dying, Explosion, PlayerShip};
 use crate::resources::ScoreBoard;
 use crate::states::GameState;
+use crate::GameAudioEvent;
 use super::spawn::do_spawn_player;
 
 const RESPAWN_DELAY_SECS: f32 = 2.5;
@@ -37,6 +38,8 @@ pub fn handle_player_death(
             commands.entity(entity).despawn();
         }
     }
+
+    commands.trigger(GameAudioEvent::PlayerExplode);
 
     // Spawn explosion marker at player position.
     // Phase 10 will add the sprite/animation; DespawnTimer cleans up the entity.

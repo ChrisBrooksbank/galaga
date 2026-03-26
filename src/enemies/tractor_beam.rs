@@ -12,6 +12,7 @@ use crate::enemies::dive_paths::boss_tractor_beam_path;
 use crate::player::death::RespawnTimer;
 use crate::resources::{DualFighterState, ScoreBoard, TractorBeamCoordinator};
 use crate::states::GameState;
+use crate::GameAudioEvent;
 
 // ── Tractor beam trigger ───────────────────────────────────────────────────────
 
@@ -167,6 +168,8 @@ pub fn spawn_tractor_beam_system(
         if let Ok(player_entity) = player_query.single() {
             commands.entity(player_entity).insert(PlayerFrozen);
         }
+
+        commands.trigger(GameAudioEvent::TractorBeamActivate);
     }
 }
 
@@ -286,6 +289,8 @@ pub fn player_capture_system(
         .insert(DivePath(vec![current_boss_pos, home_pos]))
         .insert(DivePathProgress { current_waypoint: 1 });
     // EnemyState stays Diving; dive_completion_system handles the InFormation transition.
+
+    commands.trigger(GameAudioEvent::ShipCaptured);
 
     // Record captured ship for later dual-fighter rescue logic.
     dual_fighter.captured_ship = Some(player_entity);

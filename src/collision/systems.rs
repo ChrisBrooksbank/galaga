@@ -11,6 +11,7 @@ use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::enemies::splitters::SplitterBeeKilled;
 use crate::resources::{ChallengingStageData, DualFighterState, Formation};
 use crate::scoring::ScoreEvent;
+use crate::GameAudioEvent;
 
 /// Returns true if two axis-aligned bounding boxes overlap.
 fn aabb_overlaps(pos_a: Vec2, half_a: Vec2, pos_b: Vec2, half_b: Vec2) -> bool {
@@ -106,6 +107,14 @@ pub fn bullet_enemy_collision(
             // Trigger score event; Phase 6 will add the observer that applies points.
             commands.trigger(ScoreEvent { enemy_type, is_diving });
 
+            // Play the appropriate explosion sound.
+            let audio_event = if enemy_type == EnemyType::Boss {
+                GameAudioEvent::BossExplode
+            } else {
+                GameAudioEvent::EnemyExplode
+            };
+            commands.trigger(audio_event);
+
             // Clear the formation grid slot.
             if formation.slots.get(idx) == Some(&Some(enemy_entity)) {
                 formation.slots[idx] = None;
@@ -134,6 +143,7 @@ pub fn bullet_enemy_collision(
                     // Rescue only when boss was diving (not in formation).
                     if is_diving {
                         dual_fighter.active = true;
+                        commands.trigger(GameAudioEvent::ShipRescued);
                     }
                     break;
                 }
@@ -288,6 +298,7 @@ pub fn bullet_challenging_enemy_collision(
                 ));
                 // Challenging stage enemies are always considered "diving".
                 commands.trigger(ScoreEvent { enemy_type: *enemy_type, is_diving: true });
+                commands.trigger(GameAudioEvent::EnemyExplode);
                 challenging_data.enemies_killed += 1;
                 commands.entity(enemy_entity).despawn();
             }

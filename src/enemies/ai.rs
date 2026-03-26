@@ -25,6 +25,7 @@ use crate::components::{
 use crate::constants::ENEMY_BULLET_SPEED;
 use crate::enemies::dive_paths::get_dive_path;
 use crate::resources::{DifficultyConfig, GroupAttackCoordinator};
+use crate::GameAudioEvent;
 
 // ── Dive movement ─────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ pub fn dive_decision_system(
         .insert(DivePathProgress { current_waypoint: 1 })
         .insert(EnemyFireCooldown(fire_timer))
         .insert(EnemyState::Diving); // replaces existing EnemyState component
+    commands.trigger(GameAudioEvent::EnemyDive);
 }
 
 // ── Dive completion ───────────────────────────────────────────────────────────
@@ -265,6 +267,7 @@ pub fn group_attack_system(
             .insert(DivePathProgress { current_waypoint: 1 })
             .insert(EnemyFireCooldown(fire_timer))
             .insert(EnemyState::Diving);
+        commands.trigger(GameAudioEvent::EnemyDive);
     }
 
     schedule_next(&mut coordinator, &mut rng, six_bee_mode);
@@ -328,5 +331,6 @@ pub fn enemy_fire_system(
             Velocity(dir * ENEMY_BULLET_SPEED),
             Collider { half_size: Vec2::new(2.0, 4.0) },
         ));
+        commands.trigger(GameAudioEvent::EnemyShoot);
     }
 }

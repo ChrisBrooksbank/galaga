@@ -6,6 +6,7 @@ use crate::assets::GameAssets;
 use crate::components::{Collider, DualFighter, PlayerShip};
 use crate::player::spawn::PLAYER_Y;
 use crate::resources::DualFighterState;
+use crate::GameAudioEvent;
 
 /// X offset of the secondary ship from the primary ship centre (px).
 /// Negative = to the left, matching the classic Galaga dual-fighter layout.
@@ -34,6 +35,7 @@ pub fn manage_dual_fighter(
             DualFighter,
             Collider { half_size: Vec2::new(7.0, 7.0) },
         ));
+        commands.trigger(GameAudioEvent::DualFighterJoin);
     } else if !dual_state.active && dual_exists {
         for entity in &dual_query {
             commands.entity(entity).despawn();
