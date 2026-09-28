@@ -1,6 +1,5 @@
 """
-Generate placeholder sprite assets for the Galaga clone.
-All sprites are 16x16 colored placeholder tiles.
+Generate sprite assets for the Galaga clone.
 
 Sprite atlas layout (enemies.png, 128x64 = 8 cols x 4 rows of 16x16):
   Row 0: Boss G1, Boss G2, Boss P1, Boss P2, Butterfly1, Butterfly2, Bee1, Bee2
@@ -12,6 +11,8 @@ Sprite atlas layout (enemies.png, 128x64 = 8 cols x 4 rows of 16x16):
 import struct
 import zlib
 import os
+
+TRANSPARENT = (0, 0, 0, 0)
 
 
 def create_png(width, height, pixels):
@@ -43,241 +44,392 @@ def save_png(path, width, height, pixels):
     print(f"  Generated {path} ({width}x{height})")
 
 
-def make_canvas(width, height, fill=(0, 0, 0, 0)):
+def make_canvas(width, height, fill=TRANSPARENT):
     return [fill] * (width * height)
 
 
-def draw_rect(pixels, width, x0, y0, w, h, color):
-    for y in range(y0, y0 + h):
-        for x in range(x0, x0 + w):
-            pixels[y * width + x] = color
+def blit(pixels, atlas_width, x0, y0, tile, tile_w=16, tile_h=16):
+    for y in range(tile_h):
+        for x in range(tile_w):
+            c = tile[y * tile_w + x]
+            if c[3] != 0:
+                pixels[(y0 + y) * atlas_width + (x0 + x)] = c
 
 
-def draw_border(pixels, width, x0, y0, w, h, color):
-    for x in range(x0, x0 + w):
-        pixels[y0 * width + x] = color
-        pixels[(y0 + h - 1) * width + x] = color
-    for y in range(y0, y0 + h):
-        pixels[y * width + x0] = color
-        pixels[y * width + (x0 + w - 1)] = color
+def shade(color, factor):
+    """Darken (factor<1) or lighten (factor>1) an RGBA color, clamped to 0..255."""
+    r, g, b, a = color
+    return (
+        max(0, min(255, int(r * factor))),
+        max(0, min(255, int(g * factor))),
+        max(0, min(255, int(b * factor))),
+        a,
+    )
 
 
-def draw_sprite_tile(pixels, atlas_width, col, row, fill, border, dot=None):
-    """Draw a 16x16 sprite tile at grid position (col, row)."""
-    x0 = col * 16
-    y0 = row * 16
-    # Fill interior (14x14)
-    draw_rect(pixels, atlas_width, x0 + 1, y0 + 1, 14, 14, fill)
-    # Border
-    draw_border(pixels, atlas_width, x0, y0, 16, 16, border)
-    # Optional center dot
-    if dot:
-        draw_rect(pixels, atlas_width, x0 + 6, y0 + 6, 4, 4, dot)
+# ── Generic insect-silhouette renderer ──────────────────────────────────────
+#
+# Galaga's Bee/Butterfly/Boss enemies share a recognizable "bowtie" silhouette:
+# wide swept wings top and bottom, a narrow thorax waist in the middle, and a
+# small head/antennae nub at the very top. `wing_profile` gives the half-width
+# (from the vertical centerline) of the wing silhouette per row; `body_profile`
+# gives the half-width of the narrower thorax stripe drawn in a second color on
+# top of it. `flutter` nudges the wing rows to animate a flap between frames.
+
+def render_insect(wing_profile, body_profile, wing_color, body_color,
+                   outline_color, eye_color=None, flutter=0, antenna_color=None):
+    tile = make_canvas(16, 16)
+    profile = list(wing_profile)
+    if flutter:
+        # Flap: widen the upper wing rows and narrow the lower wing rows (or
+        # vice versa) so alternating frames look like a wingbeat.
+        for i in (3, 4):
+            if i < len(profile) and profile[i] > 0:
+                profile[i] = max(0, profile[i] + flutter)
+        for i in (10, 11):
+            if i < len(profile) and profile[i] > 0:
+                profile[i] = max(0, profile[i] - flutter)
+
+    for y in range(16):
+        hw = profile[y]
+        if hw <= 0:
+            continue
+        bw = body_profile[y] if y < len(body_profile) else 0
+        for x in range(16):
+            dx = abs(x - 7.5)
+            if dx <= hw:
+                if bw and dx <= bw:
+                    tile[y * 16 + x] = body_color
+                else:
+                    tile[y * 16 + x] = wing_color
+
+    # Antennae: two single pixels poking above the topmost filled row.
+    if antenna_color:
+        top = next((y for y, hw in enumerate(profile) if hw > 0), None)
+        if top is not None and top >= 1:
+            for x in (6, 9):
+                tile[(top - 1) * 16 + x] = antenna_color
+
+    # 1px outline: any transparent pixel adjacent to a filled one.
+    filled = lambda x, y: 0 <= x < 16 and 0 <= y < 16 and tile[y * 16 + x][3] != 0
+    outline_px = []
+    for y in range(16):
+        for x in range(16):
+            if filled(x, y):
+                continue
+            if filled(x - 1, y) or filled(x + 1, y) or filled(x, y - 1) or filled(x, y + 1):
+                outline_px.append((x, y))
+    for x, y in outline_px:
+        tile[y * 16 + x] = outline_color
+
+    # Eye/core accent: small 2x2 dot at the thorax center.
+    if eye_color:
+        cy = 7
+        for y in (cy, cy + 1):
+            for x in (7, 8):
+                if tile[y * 16 + x][3] != 0:
+                    tile[y * 16 + x] = eye_color
+
+    return tile
 
 
-def make_explosion_color(frame):
-    """Explosions fade from bright yellow-white to dark red over 6 frames."""
-    stages = [
-        ((255, 255, 200, 255), (255, 255, 100, 255)),
-        ((255, 220, 100, 255), (255, 200, 50, 255)),
-        ((255, 180, 50, 255), (255, 150, 20, 255)),
-        ((220, 120, 20, 255), (200, 100, 10, 255)),
-        ((160, 70, 10, 255), (140, 60, 5, 255)),
-        ((100, 40, 5, 255), (80, 30, 2, 255)),
-    ]
-    return stages[min(frame, 5)]
+# Shared bowtie profile used by Bee/Butterfly/Boss (wide wings, narrow waist).
+INSECT_WINGS = [1, 2, 3, 5, 6, 6, 4, 3, 3, 4, 6, 6, 5, 3, 2, 1]
+INSECT_BODY = [0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 0, 0]
+
+# Boss Galaga: broader and taller, with a pronounced double-horn head.
+BOSS_WINGS = [0, 2, 3, 5, 7, 7, 5, 4, 4, 5, 7, 7, 6, 4, 3, 1]
+BOSS_BODY = [0, 0, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 1, 1, 0]
+
+# Scorpion (splitter): narrower body, spiked tail curling at the bottom.
+SCORPION_WINGS = [0, 1, 2, 4, 5, 5, 3, 2, 2, 3, 4, 3, 2, 2, 1, 1]
+SCORPION_BODY = [0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 0, 0, 0]
+
+# Stingray (splitter): flat wide "ray" body with a tapering tail.
+STINGRAY_WINGS = [0, 0, 2, 4, 6, 7, 6, 4, 3, 2, 2, 1, 1, 1, 0, 0]
+STINGRAY_BODY = [0, 0, 0, 1, 2, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0]
+
+# Galaxian-style flagship: flat wide chevron, distinct from the round insects.
+FLAGSHIP_WINGS = [0, 0, 1, 3, 5, 7, 7, 6, 6, 7, 7, 5, 3, 1, 0, 0]
+FLAGSHIP_BODY = [0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, 0, 0, 0]
 
 
 def gen_enemies_atlas():
     W, H = 128, 64
     pixels = make_canvas(W, H)
 
-    # ---- Row 0: Main enemy types ----
-    # Boss Galaga green (frame 1, 2)
-    draw_sprite_tile(pixels, W, 0, 0, (0, 180, 0, 255), (0, 255, 0, 255), dot=(0, 255, 100, 255))
-    draw_sprite_tile(pixels, W, 1, 0, (0, 160, 0, 255), (0, 230, 0, 255), dot=(0, 200, 80, 255))
-    # Boss Galaga purple (frame 1, 2 — after 1st hit)
-    draw_sprite_tile(pixels, W, 2, 0, (140, 0, 200, 255), (200, 0, 255, 255), dot=(180, 0, 255, 255))
-    draw_sprite_tile(pixels, W, 3, 0, (120, 0, 180, 255), (180, 0, 240, 255), dot=(160, 0, 240, 255))
-    # Butterfly (red/white, frames 1 & 2)
-    draw_sprite_tile(pixels, W, 4, 0, (200, 0, 0, 255), (255, 80, 80, 255), dot=(255, 200, 200, 255))
-    draw_sprite_tile(pixels, W, 5, 0, (180, 0, 0, 255), (230, 60, 60, 255), dot=(230, 180, 180, 255))
-    # Bee (blue body / yellow accent, frames 1 & 2)
-    draw_sprite_tile(pixels, W, 6, 0, (0, 80, 200, 255), (255, 255, 0, 255), dot=(255, 220, 0, 255))
-    draw_sprite_tile(pixels, W, 7, 0, (0, 60, 180, 255), (230, 230, 0, 255), dot=(230, 200, 0, 255))
+    def put(col, row, tile):
+        blit(pixels, W, col * 16, row * 16, tile)
 
-    # ---- Row 1: Splitters + Flagship + stage flags ----
-    # Scorpion splitter (yellow, frames 1 & 2)
-    draw_sprite_tile(pixels, W, 0, 1, (200, 200, 0, 255), (255, 255, 50, 255), dot=(255, 255, 150, 255))
-    draw_sprite_tile(pixels, W, 1, 1, (180, 180, 0, 255), (240, 240, 40, 255), dot=(240, 240, 130, 255))
-    # Stingray splitter (green, frames 1 & 2)
-    draw_sprite_tile(pixels, W, 2, 1, (0, 180, 80, 255), (0, 255, 120, 255), dot=(100, 255, 180, 255))
-    draw_sprite_tile(pixels, W, 3, 1, (0, 160, 70, 255), (0, 230, 100, 255), dot=(80, 230, 160, 255))
-    # Galaxian Flagship (orange)
-    draw_sprite_tile(pixels, W, 4, 1, (200, 100, 0, 255), (255, 150, 0, 255), dot=(255, 200, 100, 255))
-    # Stage flags: 1, 5, 10
-    draw_sprite_tile(pixels, W, 5, 1, (80, 80, 255, 255), (150, 150, 255, 255))
-    draw_sprite_tile(pixels, W, 6, 1, (80, 200, 80, 255), (150, 255, 150, 255))
-    draw_sprite_tile(pixels, W, 7, 1, (200, 80, 80, 255), (255, 150, 150, 255))
+    # ---- Row 0: Boss (green + damaged purple), Butterfly, Bee ----
+    for i, flutter in enumerate((1, -1)):
+        put(0 + i, 0, render_insect(
+            BOSS_WINGS, BOSS_BODY,
+            wing_color=(20, 150, 130, 255), body_color=(120, 230, 90, 255),
+            outline_color=(5, 60, 55, 255), eye_color=(255, 60, 180, 255),
+            flutter=flutter, antenna_color=(230, 230, 230, 255),
+        ))
+    for i, flutter in enumerate((1, -1)):
+        put(2 + i, 0, render_insect(
+            BOSS_WINGS, BOSS_BODY,
+            wing_color=(150, 20, 140, 255), body_color=(230, 120, 210, 255),
+            outline_color=(60, 5, 55, 255), eye_color=(255, 230, 60, 255),
+            flutter=flutter, antenna_color=(230, 230, 230, 255),
+        ))
+    for i, flutter in enumerate((1, -1)):
+        put(4 + i, 0, render_insect(
+            INSECT_WINGS, INSECT_BODY,
+            wing_color=(210, 20, 30, 255), body_color=(250, 250, 250, 255),
+            outline_color=(90, 5, 10, 255), eye_color=(255, 220, 40, 255),
+            flutter=flutter, antenna_color=(210, 20, 30, 255),
+        ))
+    for i, flutter in enumerate((1, -1)):
+        put(6 + i, 0, render_insect(
+            INSECT_WINGS, INSECT_BODY,
+            wing_color=(30, 100, 220, 255), body_color=(255, 210, 30, 255),
+            outline_color=(10, 35, 90, 255), eye_color=(255, 255, 255, 255),
+            flutter=flutter, antenna_color=(30, 100, 220, 255),
+        ))
 
-    # ---- Row 2: Explosions (6 frames) + Beam frames 1-2 ----
+    # ---- Row 1: Scorpion, Stingray, Flagship, stage flags 1/5/10 ----
+    for i, flutter in enumerate((1, -1)):
+        put(0 + i, 1, render_insect(
+            SCORPION_WINGS, SCORPION_BODY,
+            wing_color=(210, 190, 20, 255), body_color=(255, 240, 140, 255),
+            outline_color=(90, 75, 5, 255), eye_color=(200, 20, 20, 255),
+            flutter=flutter,
+        ))
+    for i, flutter in enumerate((1, -1)):
+        put(2 + i, 1, render_insect(
+            STINGRAY_WINGS, STINGRAY_BODY,
+            wing_color=(20, 170, 110, 255), body_color=(160, 255, 210, 255),
+            outline_color=(5, 70, 45, 255), eye_color=(255, 255, 255, 255),
+            flutter=flutter,
+        ))
+    put(4, 1, render_insect(
+        FLAGSHIP_WINGS, FLAGSHIP_BODY,
+        wing_color=(220, 110, 10, 255), body_color=(255, 210, 120, 255),
+        outline_color=(100, 45, 0, 255), eye_color=(255, 60, 60, 255),
+    ))
+    put(5, 1, make_flag_tile((235, 235, 235, 255)))   # stage flag: 1
+    put(6, 1, make_flag_tile((90, 200, 240, 255)))    # stage flag: 5
+    put(7, 1, make_flag_tile((240, 90, 90, 255)))     # stage flag: 10
+
+    # ---- Row 2: Explosion frames 1-6, tractor beam frames 1-2 ----
     for i in range(6):
-        fill, border = make_explosion_color(i)
-        draw_sprite_tile(pixels, W, i, 2, fill, border)
-    # Tractor beam frames 1 & 2 (cyan)
-    draw_sprite_tile(pixels, W, 6, 2, (0, 200, 200, 200), (0, 255, 222, 255))
-    draw_sprite_tile(pixels, W, 7, 2, (0, 180, 180, 180), (0, 230, 200, 255))
+        put(i, 2, make_explosion_tile(i))
+    put(6, 2, make_beam_tile(0))
+    put(7, 2, make_beam_tile(1))
 
-    # ---- Row 3: Beam frames 3-4 + remaining stage flags ----
-    draw_sprite_tile(pixels, W, 0, 3, (0, 160, 160, 160), (0, 210, 180, 255))
-    draw_sprite_tile(pixels, W, 1, 3, (0, 140, 140, 140), (0, 190, 160, 255))
-    # Stage flags: 20, 30, 50
-    draw_sprite_tile(pixels, W, 2, 3, (200, 200, 200, 255), (255, 255, 255, 255))
-    draw_sprite_tile(pixels, W, 3, 3, (180, 180, 220, 255), (220, 220, 255, 255))
-    draw_sprite_tile(pixels, W, 4, 3, (220, 180, 180, 255), (255, 220, 220, 255))
+    # ---- Row 3: tractor beam frames 3-4, stage flags 20/30/50 ----
+    put(0, 3, make_beam_tile(2))
+    put(1, 3, make_beam_tile(3))
+    put(2, 3, make_flag_tile((240, 200, 60, 255)))    # stage flag: 20
+    put(3, 3, make_flag_tile((150, 90, 230, 255)))    # stage flag: 30
+    put(4, 3, make_flag_tile((230, 60, 150, 255)))    # stage flag: 50
     # Slots 5-7 remain empty (transparent)
 
     save_png("assets/sprites/enemies.png", W, H, pixels)
 
 
+def make_explosion_tile(frame):
+    """A radiating burst (diamond ring) that expands then breaks into embers."""
+    stages = [
+        (3, (255, 255, 220, 255), (255, 230, 120, 255)),
+        (5, (255, 220, 110, 255), (255, 170, 40, 255)),
+        (7, (255, 170, 60, 255), (230, 110, 20, 255)),
+        (7, (230, 110, 30, 255), (170, 60, 10, 255)),
+        (6, (170, 70, 20, 255), (110, 35, 5, 255)),
+        (4, (110, 45, 15, 255), (60, 20, 5, 255)),
+    ]
+    radius, core, edge = stages[min(frame, 5)]
+    tile = make_canvas(16, 16)
+    cx = cy = 7.5
+    for y in range(16):
+        for x in range(16):
+            d = abs(x - cx) + abs(y - cy)  # diamond (Manhattan) burst
+            if d <= radius:
+                if frame >= 4 and (x + y) % 3 == 0:
+                    continue  # embers: later frames get gappy/fragmented
+                tile[y * 16 + x] = core if d <= radius - 2 else edge
+    return tile
+
+
+def make_beam_tile(frame):
+    """Fan-shaped tractor beam with a scalloped, faintly striped edge."""
+    tile = make_canvas(16, 16)
+    alpha = 210 - frame * 25
+    for y in range(16):
+        fan = (frame + 1) * 1.6 + y * 0.25
+        cx = 7.5
+        for x in range(16):
+            dx = abs(x - cx)
+            if dx <= fan:
+                # Scalloped brightness: alternating bands read as beam "ribs".
+                band = int(dx) % 3 == 0
+                base = 235 if band else 170
+                brightness = max(70, base - int(dx * 10))
+                tile[y * 16 + x] = (0, brightness, brightness, alpha)
+    return tile
+
+
+def make_flag_tile(color):
+    """A small pennant on a pole, matching a single 16x16 atlas cell."""
+    tile = make_canvas(16, 16)
+    pole = (150, 130, 90, 255)
+    dark = shade(color, 0.55)
+    # Pole: vertical bar near the left edge.
+    for y in range(2, 15):
+        tile[y * 16 + 3] = pole
+    # Pennant: right-pointing triangle attached to the pole.
+    for row, half in enumerate([5, 4, 3, 2, 1]):
+        y = 3 + row
+        for x in range(4, 4 + (5 - row) * 2):
+            tile[y * 16 + x] = color if x < 12 else dark
+    # Outline the pennant's top/bottom edge for definition.
+    tile[3 * 16 + 4] = dark
+    tile[7 * 16 + 4] = dark
+    return tile
+
+
+# ── Player fighter ───────────────────────────────────────────────────────────
+
 def gen_player():
     W, H = 16, 16
-    pixels = make_canvas(W, H)
-    # Simple triangular ship silhouette (pointing up)
-    white = (222, 222, 222, 255)
-    shape = [
-        "       ##       ",
-        "      ####      ",
-        "      ####      ",
-        "     ######     ",
-        "     ######     ",
-        "    ########    ",
-        "    ########    ",
-        "   ##########   ",
-        "  ############  ",
-        " ###############",  # Note: 17 chars so trim
-        "################",
-        "################",
-        "################",
-        " ##############",
-        "  ## ######## ##",
-        "     ########   ",
-    ]
-    # Simpler approach: direct pixel drawing
-    pixels = make_canvas(W, H)
-    ship_pixels = [
-        (7, 0), (8, 0),
-        (6, 1), (7, 1), (8, 1), (9, 1),
-        (6, 2), (7, 2), (8, 2), (9, 2),
-        (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3),
-        (5, 4), (6, 4), (7, 4), (8, 4), (9, 4), (10, 4),
-        (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (11, 5),
-        (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (11, 6), (12, 6),
-        (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (11, 7), (12, 7), (13, 7),
-        (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (11, 8), (12, 8), (13, 8), (14, 8),
-        (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (11, 9), (12, 9), (13, 9), (14, 9), (15, 9),
-        (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (11, 10), (12, 10), (13, 10), (14, 10), (15, 10),
-        (0, 11), (1, 11), (2, 11), (3, 11), (4, 11), (5, 11), (6, 11), (7, 11), (8, 11), (9, 11), (10, 11), (11, 11), (12, 11), (13, 11), (14, 11), (15, 11),
-        (0, 12), (1, 12), (2, 12), (3, 12), (4, 12), (5, 12), (6, 12), (7, 12), (8, 12), (9, 12), (10, 12), (11, 12), (12, 12), (13, 12), (14, 12), (15, 12),
-        (1, 13), (2, 13), (4, 13), (5, 13), (6, 13), (7, 13), (8, 13), (9, 13), (10, 13), (11, 13), (13, 13), (14, 13),
-        (4, 14), (5, 14), (6, 14), (7, 14), (8, 14), (9, 14), (10, 14), (11, 14),
-        (5, 15), (6, 15), (7, 15), (8, 15), (9, 15), (10, 15),
-    ]
-    for x, y in ship_pixels:
-        if 0 <= x < W and 0 <= y < H:
-            pixels[y * W + x] = white
-    save_png("assets/sprites/player.png", W, H, pixels)
+    tile = make_canvas(W, H)
+    white = (235, 235, 240, 255)
+    red = (220, 30, 30, 255)
+    blue = (40, 140, 230, 255)
+    dark = (60, 60, 70, 255)
 
+    # Silhouette half-width per row: narrow nose -> flared twin-pod wings.
+    profile = [1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 8, 8, 7, 6, 0, 0]
+    for y, hw in enumerate(profile):
+        for x in range(W):
+            if abs(x - 7.5) <= hw:
+                tile[y * W + x] = white
+    # Engine notch: split the bottom of the hull into twin pods.
+    for y in (12, 13):
+        for x in range(6, 10):
+            tile[y * W + x] = TRANSPARENT
+    for x, y in [(4, 14), (5, 14), (10, 14), (11, 14)]:
+        tile[y * W + x] = white
+
+    # Red wingtips on the outermost columns of the flared rows.
+    for y in (8, 9, 10, 11):
+        hw = profile[y]
+        for dx in (0, 1):
+            for sign in (-1, 1):
+                x = int(7.5 + sign * (hw - dx))
+                if 0 <= x < W and tile[y * W + x][3] != 0:
+                    tile[y * W + x] = red
+
+    # Blue cockpit window.
+    for x, y in [(7, 4), (8, 4), (7, 5), (8, 5)]:
+        tile[y * W + x] = blue
+
+    # 1px dark outline around the silhouette.
+    filled = lambda x, y: 0 <= x < W and 0 <= y < H and tile[y * W + x][3] != 0
+    outline_px = []
+    for y in range(H):
+        for x in range(W):
+            if filled(x, y):
+                continue
+            if filled(x - 1, y) or filled(x + 1, y) or filled(x, y - 1) or filled(x, y + 1):
+                outline_px.append((x, y))
+    for x, y in outline_px:
+        tile[y * W + x] = dark
+
+    save_png("assets/sprites/player.png", W, H, tile)
+    return tile
+
+
+def gen_lives_icon(player_tile):
+    """Mini player ship icon for the lives HUD: the player sprite, scaled down."""
+    W, H = 16, 16
+    tile = make_canvas(W, H)
+    for y in range(H):
+        for x in range(W):
+            sx, sy = x, min(H - 1, y + 1)  # nudge down slightly to re-center
+            src = player_tile[sy * W + sx]
+            if src[3] != 0:
+                tile[y * W + x] = src
+    save_png("assets/sprites/ui/lives_icon.png", W, H, tile)
+
+
+# ── Bullets ──────────────────────────────────────────────────────────────────
 
 def gen_bullets():
-    """Two bullet sprites stacked vertically: player (white) and enemy (red), each 4x8."""
+    """Player bullet (cyan/white tapered bolt) over enemy bullet (red-orange), 4x16."""
     W, H = 4, 16
     pixels = make_canvas(W, H)
-    white = (222, 222, 222, 255)
-    red = (255, 80, 80, 255)
-    # Player bullet (top 8 rows): thin vertical bar
+    white = (240, 250, 255, 255)
+    cyan = (60, 220, 255, 255)
+    orange = (255, 90, 30, 255)
+    dark_orange = (170, 40, 10, 255)
+
+    # Player bullet: tapered bolt, bright core with cyan glow, rows 0-7.
     for y in range(1, 7):
-        pixels[y * W + 1] = white
-        pixels[y * W + 2] = white
-    # Enemy bullet (bottom 8 rows): thin vertical bar, red
+        pixels[y * W + 1] = cyan
+        pixels[y * W + 2] = cyan
+    pixels[1 * W + 1] = TRANSPARENT
+    pixels[1 * W + 2] = white
+    for y in range(2, 6):
+        pixels[y * W + 1] = white if y in (3, 4) else cyan
+        pixels[y * W + 2] = white if y in (3, 4) else cyan
+
+    # Enemy bullet: small glowing ember, rows 9-14.
     for y in range(9, 15):
-        pixels[y * W + 1] = red
-        pixels[y * W + 2] = red
+        pixels[y * W + 1] = orange
+        pixels[y * W + 2] = orange
+    pixels[9 * W + 1] = dark_orange
+    pixels[9 * W + 2] = dark_orange
+    pixels[14 * W + 1] = dark_orange
+    pixels[14 * W + 2] = dark_orange
+
     save_png("assets/sprites/bullets.png", W, H, pixels)
 
 
 def gen_tractor_beam():
-    """4 frames of tractor beam animation (fan shape, cyan), each 16x16, stacked vertically."""
+    """4 frames of the boss's fan-shaped capture beam, matching the atlas beam tiles."""
     W, H = 16, 64
     pixels = make_canvas(W, H)
     for frame in range(4):
-        y0 = frame * 16
-        alpha = 200 - frame * 30
-        for y in range(16):
-            # Fan widens as y increases, also varies by frame
-            fan = (frame + 1) * 2 + y // 3
-            cx = 8
-            for x in range(16):
-                if abs(x - cx) <= fan:
-                    brightness = max(100, 200 - abs(x - cx) * 15)
-                    pixels[(y0 + y) * W + x] = (0, brightness, brightness, alpha)
+        blit(pixels, W, 0, frame * 16, make_beam_tile(frame))
     save_png("assets/sprites/tractor_beam.png", W, H, pixels)
 
 
-def gen_lives_icon():
-    """Mini player ship icon for the lives HUD (16x16)."""
-    W, H = 16, 16
-    pixels = make_canvas(W, H)
-    white = (222, 222, 222, 255)
-    # Simplified 8x8 ship centered in 16x16
-    ship_pixels = [
-        (7, 2), (8, 2),
-        (6, 3), (7, 3), (8, 3), (9, 3),
-        (5, 4), (6, 4), (7, 4), (8, 4), (9, 4), (10, 4),
-        (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (11, 5),
-        (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (11, 6), (12, 6),
-        (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (11, 7), (12, 7), (13, 7),
-        (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (11, 8), (12, 8), (13, 8),
-        (3, 9), (4, 9), (6, 9), (7, 9), (8, 9), (9, 9), (11, 9), (12, 9),
-    ]
-    for x, y in ship_pixels:
-        if 0 <= x < W and 0 <= y < H:
-            pixels[y * W + x] = white
-    save_png("assets/sprites/ui/lives_icon.png", W, H, pixels)
-
-
 def gen_stage_flags():
-    """Stage flag icons: 1, 5, 10, 20, 30, 50 - each 8x8, arranged horizontally in a strip."""
-    W, H = 48, 8
-    pixels = make_canvas(W, H)
+    """Stage flag strip: 1, 5, 10, 20, 30, 50 — same art as the atlas flag tiles, 8x8 each."""
     colors = [
-        (100, 100, 255, 255),   # 1  - blue
-        (100, 200, 100, 255),   # 5  - green
-        (200, 100, 100, 255),   # 10 - red
-        (200, 200, 100, 255),   # 20 - yellow
-        (100, 200, 200, 255),   # 30 - cyan
-        (200, 100, 200, 255),   # 50 - magenta
+        (235, 235, 235, 255),  # 1
+        (90, 200, 240, 255),   # 5
+        (240, 90, 90, 255),    # 10
+        (240, 200, 60, 255),   # 20
+        (150, 90, 230, 255),   # 30
+        (230, 60, 150, 255),   # 50
     ]
+    W, H = 8 * len(colors), 8
+    pixels = make_canvas(W, H)
+    pole = (150, 130, 90, 255)
     for i, color in enumerate(colors):
         x0 = i * 8
-        for y in range(8):
-            for x in range(8):
-                if x == 0 or x == 7 or y == 0 or y == 7:
-                    pixels[y * W + (x0 + x)] = tuple(max(0, min(255, c + 50)) if j < 3 else c for j, c in enumerate(color))
-                else:
-                    pixels[y * W + (x0 + x)] = color
+        dark = shade(color, 0.55)
+        for y in range(1, 7):
+            pixels[y * W + (x0 + 1)] = pole
+        for row, half in enumerate([2, 1]):
+            y = 1 + row
+            for x in range(2, 2 + (3 - row) * 2):
+                pixels[y * W + (x0 + x)] = color if x < 6 else dark
     save_png("assets/sprites/stage_flags.png", W, H, pixels)
 
 
 if __name__ == "__main__":
-    print("Generating placeholder sprite assets...")
+    print("Generating sprite assets...")
     gen_enemies_atlas()
-    gen_player()
+    player_tile = gen_player()
+    gen_lives_icon(player_tile)
     gen_bullets()
     gen_tractor_beam()
-    gen_lives_icon()
     gen_stage_flags()
-    print("Done! All placeholder sprites created.")
-    print()
-    print("NOTE: These are colored placeholder sprites.")
-    print("Replace with actual pixel art before final release.")
+    print("Done.")
