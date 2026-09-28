@@ -7,6 +7,7 @@ use crate::components::{
     DualFighter, Dying, EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
     SplitterBee,
 };
+use crate::constants::{LOGICAL_WIDTH, LOGICAL_HEIGHT};
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::enemies::splitters::SplitterBeeKilled;
 use crate::resources::{ChallengingStageData, DualFighterState, Formation};
@@ -17,6 +18,13 @@ use crate::GameAudioEvent;
 fn aabb_overlaps(pos_a: Vec2, half_a: Vec2, pos_b: Vec2, half_b: Vec2) -> bool {
     (pos_a.x - pos_b.x).abs() < half_a.x + half_b.x
         && (pos_a.y - pos_b.y).abs() < half_a.y + half_b.y
+}
+
+/// Returns true if the position is within the visible screen area (with a small margin).
+fn is_on_screen(pos: Vec2) -> bool {
+    let half_w = LOGICAL_WIDTH / 2.0;
+    let half_h = LOGICAL_HEIGHT / 2.0;
+    pos.x > -half_w && pos.x < half_w && pos.y > -half_h && pos.y < half_h
 }
 
 /// Detect collisions between player bullets and enemies.
@@ -199,6 +207,9 @@ pub fn diving_enemy_player_collision(
             continue;
         }
         let e_pos = e_tf.translation.truncate();
+        if !is_on_screen(e_pos) {
+            continue;
+        }
         if aabb_overlaps(e_pos, e_col.half_size, p_pos, p_col.half_size) {
             commands.entity(player_entity).insert(Dying);
             return; // one hit is enough
@@ -328,6 +339,9 @@ pub fn diving_enemy_dual_fighter_collision(
             continue;
         }
         let e_pos = e_tf.translation.truncate();
+        if !is_on_screen(e_pos) {
+            continue;
+        }
         if aabb_overlaps(e_pos, e_col.half_size, d_pos, d_col.half_size) {
             commands.spawn((
                 Explosion {
