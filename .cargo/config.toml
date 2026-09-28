@@ -3,4 +3,5 @@ target = "x86_64-pc-windows-gnu"
 target-dir = "C:\\Users\\chris\\AppData\\Local\\Temp\\galaga-target"
 
 [target.x86_64-pc-windows-gnu]
-linker = "C:\\users\\chris\\code\\galaga\\gcc-lld-wrapper.bat"
+linker = "C:\\msys64\\mingw64\\bin\\x86_64-w64-mingw32-gcc.exe"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
