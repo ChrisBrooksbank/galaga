@@ -196,7 +196,16 @@ pub fn music_on_exit_paused(music: Res<AudioChannel<MusicChannel>>) {
 pub fn add_music_systems(app: &mut App) {
     app.add_audio_channel::<MusicChannel>()
         .add_systems(OnEnter(GameState::Menu), music_on_enter_menu)
-        .add_systems(OnEnter(GameState::Playing), music_on_enter_playing)
+        // Not OnEnter(Playing): resuming from Paused must continue the track
+        // (music_on_exit_paused) rather than restart it from the beginning.
+        .add_systems(
+            OnTransition { exited: GameState::Menu, entered: GameState::Playing },
+            music_on_enter_playing,
+        )
+        .add_systems(
+            OnTransition { exited: GameState::ChallengingStage, entered: GameState::Playing },
+            music_on_enter_playing,
+        )
         .add_systems(OnEnter(GameState::ChallengingStage), music_on_enter_challenging)
         .add_systems(OnEnter(GameState::GameOver), music_on_enter_game_over)
         .add_systems(OnEnter(GameState::Paused), music_on_enter_paused)
