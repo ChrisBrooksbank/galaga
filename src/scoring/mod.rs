@@ -1,2 +1,2 @@
 pub mod systems;
-pub use systems::{handle_score_event, ScoreEvent};
+pub use systems::{add_points, handle_score_event, ScoreEvent};

@@ -4,13 +4,17 @@ use crate::assets::{enemy_sprite_index, GameAssets};
 use crate::components::{
     AnimationTimer, ChallengingFlightPath, Collider, EnemyType, Health,
 };
-use crate::constants::{CHALLENGING_STAGE_INTERVAL, FIRST_CHALLENGING_STAGE, TOTAL_ENEMIES};
+use crate::constants::{
+    CHALLENGING_STAGE_INTERVAL, FIRST_CHALLENGING_STAGE, PERFECT_BONUS_SCORE, TOTAL_ENEMIES,
+};
 use crate::enemies::spawn::do_spawn_formation;
 use crate::resources::{
     ChallengingStageData, ChallengingStageSpawner, DifficultyConfig, Formation, ScoreBoard,
 };
+use crate::scoring::add_points;
 use crate::states::GameState;
 use crate::waves::difficulty::update_difficulty_for_stage;
+use crate::GameAudioEvent;
 
 // Speed at which challenging-stage enemies fly along their paths.
 const CHALLENGING_FLIGHT_SPEED: f32 = 100.0;
@@ -146,10 +150,9 @@ pub fn challenging_stage_completion(
 
     // Perfect bonus: all 40 enemies destroyed earns 10,000 bonus points.
     if data.enemies_killed >= data.total_enemies {
-        const PERFECT_BONUS: u32 = 10_000;
-        score_board.score += PERFECT_BONUS;
-        if score_board.score > score_board.high_score {
-            score_board.high_score = score_board.score;
+        commands.trigger(GameAudioEvent::PerfectBonus);
+        if add_points(&mut score_board, PERFECT_BONUS_SCORE) > 0 {
+            commands.trigger(GameAudioEvent::ExtraLife);
         }
     }
 

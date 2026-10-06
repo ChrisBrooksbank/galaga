@@ -20,6 +20,8 @@ use crate::components::{
 };
 use crate::enemies::dive_paths::splitter_piece_path;
 use crate::resources::{ScoreBoard, SplitterState};
+use crate::scoring::add_points;
+use crate::GameAudioEvent;
 
 // ── Stage-to-type mapping ─────────────────────────────────────────────────────
 
@@ -189,10 +191,8 @@ pub fn bullet_splitter_piece_collision(
                 commands.entity(piece_entity).despawn();
 
                 // Award base points for this piece (diving Bee equivalent).
-                score_board.score += 100;
-                if score_board.score > score_board.high_score {
-                    score_board.high_score = score_board.score;
-                }
+                let mut lives_awarded = add_points(&mut score_board, 100);
+                commands.trigger(GameAudioEvent::EnemyExplode);
 
                 splitter_state.pieces_killed += 1;
                 splitter_state.pieces_alive = splitter_state.pieces_alive.saturating_sub(1);
@@ -201,10 +201,11 @@ pub fn bullet_splitter_piece_collision(
                 if splitter_state.pieces_killed >= 3 && !splitter_state.bonus_awarded {
                     splitter_state.bonus_awarded = true;
                     let bonus = splitter_bonus_points(piece.splitter_type);
-                    score_board.score += bonus;
-                    if score_board.score > score_board.high_score {
-                        score_board.high_score = score_board.score;
-                    }
+                    lives_awarded += add_points(&mut score_board, bonus);
+                    commands.trigger(GameAudioEvent::BonusAwarded);
+                }
+                if lives_awarded > 0 {
+                    commands.trigger(GameAudioEvent::ExtraLife);
                 }
             }
             break;

@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 
 use crate::assets::GameAssets;
-use crate::components::{Bullet, BulletOwner, DespawnTimer, Dying, Explosion, PlayerShip};
-use crate::resources::ScoreBoard;
+use crate::components::{
+    Bullet, BulletOwner, DespawnTimer, DualFighter, Dying, Explosion, FireCooldown, MovementSpeed,
+    PlayerShip,
+};
+use crate::constants::{PLAYER_FIRE_COOLDOWN_SECS, PLAYER_SPEED};
+use crate::resources::{DualFighterState, ScoreBoard};
 use crate::states::GameState;
 use crate::GameAudioEvent;
 use super::spawn::do_spawn_player;
@@ -17,7 +21,8 @@ pub struct RespawnTimer(pub Option<Timer>);
 /// - Clears the player's in-flight bullets
 /// - Spawns an explosion marker (visual handled in Phase 10)
 /// - Despawns the player ship
-/// - Decrements lives; starts the respawn timer or transitions to GameOver
+/// - In dual-fighter mode, promotes the surviving ship to the player (no life lost)
+/// - Otherwise decrements lives; starts the respawn timer or transitions to GameOver
 pub fn handle_player_death(
     mut commands: Commands,
     player_query: Query<(Entity, &Transform), (With<PlayerShip>, With<Dying>)>,
@@ -25,6 +30,8 @@ pub fn handle_player_death(
     mut score_board: ResMut<ScoreBoard>,
     mut respawn_timer: ResMut<RespawnTimer>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut dual_state: ResMut<DualFighterState>,
+    dual_query: Query<Entity, With<DualFighter>>,
 ) {
     let Ok((player_entity, transform)) = player_query.single() else {
         return;
@@ -54,6 +61,20 @@ pub fn handle_player_death(
 
     // Despawn the player ship.
     commands.entity(player_entity).despawn();
+
+    // Dual fighter: losing one half of the pair costs no life — the surviving
+    // ship simply carries on as the single fighter.
+    if dual_state.active {
+        dual_state.active = false;
+        if let Ok(dual_entity) = dual_query.single() {
+            commands.entity(dual_entity).remove::<DualFighter>().insert((
+                PlayerShip,
+                MovementSpeed(PLAYER_SPEED),
+                FireCooldown(Timer::from_seconds(PLAYER_FIRE_COOLDOWN_SECS, TimerMode::Once)),
+            ));
+            return;
+        }
+    }
 
     // Decrement lives and decide next action.
     score_board.lives = score_board.lives.saturating_sub(1);

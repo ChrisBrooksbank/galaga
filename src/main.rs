@@ -19,6 +19,9 @@ pub mod ui;
 pub mod waves;
 
 use assets::GameAssets;
+use components::{
+    Bullet, CapturedShip, DualFighter, EnemyType, Explosion, PlayerShip, SplitterPiece,
+};
 use collision::{
     bullet_challenging_enemy_collision, bullet_enemy_collision,
     diving_enemy_dual_fighter_collision, diving_enemy_player_collision,
@@ -29,7 +32,10 @@ use enemies::splitters::{
 };
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system, enemy_fire_system, group_attack_system};
-use enemies::tractor_beam::{boss_tractor_decision, player_capture_system, pulse_tractor_beam_system, spawn_tractor_beam_system};
+use enemies::tractor_beam::{
+    boss_tractor_decision, player_capture_system, pulse_tractor_beam_system,
+    spawn_tractor_beam_system, tractor_beam_catch_system, tractor_beam_watchdog,
+};
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
@@ -45,10 +51,10 @@ use audio::{add_music_systems, handle_audio_events};
 pub use audio::GameAudioEvent;
 use states::GameState;
 use ui::game_over::{despawn_game_over, game_over_input, spawn_game_over};
-use ui::hud::{spawn_hud, update_hud};
+use ui::hud::{spawn_hud, update_hud, HudElement};
 use ui::menu::{blink_press_start, despawn_menu, spawn_menu};
 use ui::pause::{despawn_pause_menu, pause_menu_input, spawn_pause_menu, update_pause_volume_labels, PauseSelection};
-use ui::stage_intro::{arm_stage_intro, tick_stage_intro, StageIntroTimer};
+use ui::stage_intro::{arm_stage_intro, tick_stage_intro, StageIntroElement, StageIntroTimer};
 use waves::{
     challenging_stage_completion, check_stage_complete, enter_challenging_stage,
     move_challenging_enemies, spawn_challenging_stage_patterns, tick_stage_transition,
@@ -69,6 +75,8 @@ fn main() {
             ..default()
         }))
         .add_plugins(AudioPlugin)
+        // Arcade cabinets render on pure black, not Bevy's default dark grey.
+        .insert_resource(ClearColor(Color::BLACK))
         .init_state::<GameState>()
         .init_resource::<ScoreBoard>()
         .init_resource::<Formation>()
@@ -85,6 +93,7 @@ fn main() {
         .init_resource::<StageIntroTimer>()
         .init_resource::<VolumeSettings>()
         .init_resource::<PauseSelection>()
+        .init_resource::<PausedFrom>()
         .add_observer(handle_audio_events)
         .add_observer(handle_score_event)
         .add_observer(handle_splitter_bee_killed)
@@ -109,10 +118,17 @@ fn main() {
                     .or(in_state(GameState::GameOver)),
             ),
         )
-        // Reset game state, spawn player and formation when entering Playing
+        // Start a fresh game only when coming from the title screen.  `OnEnter(Playing)`
+        // would also fire when resuming from Paused or returning from a challenging
+        // stage, wiping the score and spawning a duplicate player and formation.
         .add_systems(
-            OnEnter(GameState::Playing),
+            OnTransition { exited: GameState::Menu, entered: GameState::Playing },
             (init_scoreboard, reset_wave_state, spawn_player, spawn_formation, spawn_hud, arm_stage_intro).chain(),
+        )
+        // Back from a challenging stage: show the "STAGE X" intro for the next wave.
+        .add_systems(
+            OnTransition { exited: GameState::ChallengingStage, entered: GameState::Playing },
+            arm_stage_intro,
         )
         // HUD update: keep score, lives, and stage in sync
         .add_systems(
@@ -125,7 +141,7 @@ fn main() {
             ),
         )
         // Spawn menu UI on entering Menu state; despawn on leaving
-        .add_systems(OnEnter(GameState::Menu), spawn_menu)
+        .add_systems(OnEnter(GameState::Menu), (cleanup_gameplay_entities, spawn_menu))
         .add_systems(OnExit(GameState::Menu), despawn_menu)
         // Menu blink and transition
         .add_systems(
@@ -136,8 +152,12 @@ fn main() {
         .add_systems(OnEnter(GameState::GameOver), spawn_game_over)
         .add_systems(OnExit(GameState::GameOver), despawn_game_over)
         .add_systems(Update, game_over_input.run_if(in_state(GameState::GameOver)))
-        // Playing → Paused on Escape
-        .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
+        // Playing / ChallengingStage → Paused on Escape
+        .add_systems(
+            Update,
+            toggle_pause
+                .run_if(in_state(GameState::Playing).or(in_state(GameState::ChallengingStage))),
+        )
         // Paused: spawn/despawn pause menu, handle input, update labels
         .add_systems(OnEnter(GameState::Paused), spawn_pause_menu)
         .add_systems(OnExit(GameState::Paused), despawn_pause_menu)
@@ -177,10 +197,14 @@ fn main() {
             Update,
             move_splitter_pieces.run_if(in_state(GameState::Playing)),
         )
-        // Player death and respawn (only while Playing)
+        // Player death (only while Playing)
+        .add_systems(Update, handle_player_death.run_if(in_state(GameState::Playing)))
+        // Respawn also ticks during a challenging stage: a ship lost during the
+        // stage-clear delay must come back, or the bonus stage is played shipless.
         .add_systems(
             Update,
-            (handle_player_death, tick_respawn).run_if(in_state(GameState::Playing)),
+            tick_respawn
+                .run_if(in_state(GameState::Playing).or(in_state(GameState::ChallengingStage))),
         )
         // Stage progression (only while Playing)
         .add_systems(
@@ -226,8 +250,10 @@ fn main() {
                 group_attack_system,
                 boss_tractor_decision,
                 spawn_tractor_beam_system,
+                tractor_beam_catch_system,
                 pulse_tractor_beam_system,
                 player_capture_system,
+                tractor_beam_watchdog,
                 dive_movement_system,
                 dive_completion_system,
                 enemy_fire_system,
@@ -246,8 +272,9 @@ fn main() {
                 ),
         )
         // Challenging stage: initialise on entry, spawn patterns and check completion each frame
+        // Only on arrival from Playing: resuming from Paused must not restart the stage.
         .add_systems(
-            OnEnter(GameState::ChallengingStage),
+            OnTransition { exited: GameState::Playing, entered: GameState::ChallengingStage },
             enter_challenging_stage,
         )
         .add_systems(
@@ -313,15 +340,60 @@ fn reset_wave_state(
     waves::difficulty::update_difficulty_for_stage(&mut difficulty, 1);
 }
 
+/// Despawn every entity left over from the previous game (ships, enemies,
+/// bullets, explosions, HUD) so it doesn't linger over the title screen or
+/// carry into the next game.
+fn cleanup_gameplay_entities(
+    mut commands: Commands,
+    query: Query<
+        Entity,
+        Or<(
+            With<PlayerShip>,
+            With<DualFighter>,
+            With<CapturedShip>,
+            With<EnemyType>,
+            With<SplitterPiece>,
+            With<Bullet>,
+            With<Explosion>,
+            With<HudElement>,
+            With<StageIntroElement>,
+        )>,
+    >,
+    mut respawn_timer: ResMut<RespawnTimer>,
+    mut intro_timer: ResMut<StageIntroTimer>,
+) {
+    for entity in &query {
+        // Captured ships are children of their Boss and may already be gone.
+        commands.entity(entity).try_despawn();
+    }
+    respawn_timer.0 = None;
+    *intro_timer = StageIntroTimer::default();
+}
+
+/// The state that was active when the game was paused, so Escape resumes
+/// the right one (a regular stage or a challenging stage).
+#[derive(Resource)]
+struct PausedFrom(GameState);
+
+impl Default for PausedFrom {
+    fn default() -> Self {
+        Self(GameState::Playing)
+    }
+}
+
 fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
     state: Res<State<GameState>>,
+    mut paused_from: ResMut<PausedFrom>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
         match state.get() {
-            GameState::Playing => next_state.set(GameState::Paused),
-            GameState::Paused => next_state.set(GameState::Playing),
+            GameState::Playing | GameState::ChallengingStage => {
+                paused_from.0 = state.get().clone();
+                next_state.set(GameState::Paused);
+            }
+            GameState::Paused => next_state.set(paused_from.0.clone()),
             _ => {}
         }
     }

@@ -7,6 +7,7 @@ use crate::components::{
     DualFighter, Dying, EnemyState, EnemyType, Explosion, FormationSlot, Health, PlayerShip,
     SplitterBee,
 };
+use crate::assets::enemy_sprite_index;
 use crate::constants::{LOGICAL_WIDTH, LOGICAL_HEIGHT};
 use crate::enemies::formation::{enemy_type_for_slot, slot_index};
 use crate::enemies::splitters::SplitterBeeKilled;
@@ -18,6 +19,15 @@ use crate::GameAudioEvent;
 fn aabb_overlaps(pos_a: Vec2, half_a: Vec2, pos_b: Vec2, half_b: Vec2) -> bool {
     (pos_a.x - pos_b.x).abs() < half_a.x + half_b.x
         && (pos_a.y - pos_b.y).abs() < half_a.y + half_b.y
+}
+
+/// Swap a Boss Galaga to its damaged (purple) sprite after its first hit,
+/// keeping the current wing-flutter frame.  Boss frames are 0–1 (green) and
+/// 2–3 (purple), so the low bit carries the flutter phase.
+fn show_boss_damage(sprite: &mut Sprite) {
+    if let Some(atlas) = sprite.texture_atlas.as_mut() {
+        atlas.index = enemy_sprite_index::BOSS_PURPLE_1 + (atlas.index & 1);
+    }
 }
 
 /// Returns true if the position is within the visible screen area (with a small margin).
@@ -44,6 +54,7 @@ pub fn bullet_enemy_collision(
         &EnemyState,
         &mut Health,
         &FormationSlot,
+        &mut Sprite,
     )>,
     mut formation: ResMut<Formation>,
     mut dual_fighter: ResMut<DualFighterState>,
@@ -89,12 +100,17 @@ pub fn bullet_enemy_collision(
             continue;
         }
 
-        let Ok((_, e_tf, _, enemy_state, mut health, slot)) = enemy_query.get_mut(enemy_entity)
+        let Ok((_, e_tf, _, enemy_state, mut health, slot, mut sprite)) =
+            enemy_query.get_mut(enemy_entity)
         else {
             continue;
         };
 
         health.0 = health.0.saturating_sub(1);
+
+        if health.0 > 0 {
+            show_boss_damage(&mut sprite);
+        }
 
         if health.0 == 0 {
             let pos = e_tf.translation;
@@ -271,7 +287,7 @@ pub fn bullet_challenging_enemy_collision(
     mut commands: Commands,
     bullet_query: Query<(Entity, &Transform, &Collider, &Bullet)>,
     mut enemy_query: Query<
-        (Entity, &Transform, &Collider, &EnemyType, &mut Health),
+        (Entity, &Transform, &Collider, &EnemyType, &mut Health, &mut Sprite),
         With<ChallengingFlightPath>,
     >,
     mut challenging_data: ResMut<ChallengingStageData>,
@@ -288,7 +304,7 @@ pub fn bullet_challenging_enemy_collision(
 
         let b_pos = b_tf.translation.truncate();
 
-        for (enemy_entity, e_tf, e_col, enemy_type, mut health) in enemy_query.iter_mut() {
+        for (enemy_entity, e_tf, e_col, enemy_type, mut health, mut sprite) in enemy_query.iter_mut() {
             let e_pos = e_tf.translation.truncate();
             if !aabb_overlaps(b_pos, b_col.half_size, e_pos, e_col.half_size) {
                 continue;
@@ -298,7 +314,9 @@ pub fn bullet_challenging_enemy_collision(
             used_bullets.insert(bullet_entity);
 
             health.0 = health.0.saturating_sub(1);
-            if health.0 == 0 {
+            if health.0 > 0 {
+                show_boss_damage(&mut sprite);
+            } else {
                 commands.spawn((
                     Explosion {
                         frame: 0,
