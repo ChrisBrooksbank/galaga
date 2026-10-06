@@ -32,7 +32,10 @@ use enemies::splitters::{
 };
 use constants::{FIRST_EXTRA_LIFE_SCORE, PLAYER_START_LIVES};
 use enemies::ai::{dive_completion_system, dive_decision_system, dive_movement_system, enemy_fire_system, group_attack_system};
-use enemies::tractor_beam::{boss_tractor_decision, player_capture_system, pulse_tractor_beam_system, spawn_tractor_beam_system};
+use enemies::tractor_beam::{
+    boss_tractor_decision, player_capture_system, pulse_tractor_beam_system,
+    spawn_tractor_beam_system, tractor_beam_watchdog,
+};
 use enemies::entry_patterns::move_forming_enemies;
 use enemies::formation::{animate_enemy_wings, apply_formation_breathing, update_formation_breathing};
 use enemies::spawn::spawn_formation;
@@ -244,6 +247,7 @@ fn main() {
                 spawn_tractor_beam_system,
                 pulse_tractor_beam_system,
                 player_capture_system,
+                tractor_beam_watchdog,
                 dive_movement_system,
                 dive_completion_system,
                 enemy_fire_system,

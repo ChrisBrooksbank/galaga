@@ -33,8 +33,9 @@ pub fn boss_tractor_decision(
     mut commands: Commands,
     time: Res<Time>,
     mut coordinator: ResMut<TractorBeamCoordinator>,
-    boss_query: Query<(Entity, &EnemyState, &EnemyType, &FormationSlot)>,
+    boss_query: Query<(Entity, &EnemyState, &EnemyType, &FormationSlot, Has<Children>)>,
     bullet_query: Query<&Bullet>,
+    dual_fighter: Res<DualFighterState>,
 ) {
     coordinator.timer.tick(time.delta());
     if !coordinator.timer.just_finished() {
@@ -50,14 +51,29 @@ pub fn boss_tractor_decision(
         return;
     }
 
+    // As in the arcade, only one fighter can be held at a time, and a dual
+    // fighter is never targeted.  (A capture strips the Boss's children, so
+    // re-beaming a Boss that already holds a ship would destroy that ship.)
+    if dual_fighter.active || dual_fighter.captured_ship.is_some() {
+        return;
+    }
+
     // Precondition 2: collect InFormation Bosses.
+    let in_formation = |s: &EnemyState, et: &EnemyType| {
+        *s == EnemyState::InFormation && *et == EnemyType::Boss
+    };
+    if boss_query.iter().filter(|(_, s, et, ..)| in_formation(s, et)).count() < 2 {
+        return;
+    }
+
+    // Only Bosses not already carrying a captured ship can fire the beam.
     let formation_bosses: Vec<(Entity, Vec2)> = boss_query
         .iter()
-        .filter(|(_, s, et, _)| **s == EnemyState::InFormation && **et == EnemyType::Boss)
-        .map(|(e, _, _, slot)| (e, slot.home_pos))
+        .filter(|(_, s, et, _, has_children)| in_formation(s, et) && !has_children)
+        .map(|(e, _, _, slot, _)| (e, slot.home_pos))
         .collect();
 
-    if formation_bosses.len() < 2 {
+    if formation_bosses.is_empty() {
         return;
     }
 
@@ -305,4 +321,122 @@ pub fn player_capture_system(
     }
 
     coordinator.active = false;
+}
+
+// ── Interrupted-run recovery ───────────────────────────────────────────────
+
+/// Cleans up a tractor-beam run that ended without a capture.
+///
+/// Two ways a run can be cut short:
+///
+/// * The Boss is shot down mid-run.  The beam children die with it, but the
+///   player would otherwise stay `PlayerFrozen` (and red) for the rest of the
+///   game, and `TractorBeamCoordinator::active` would never clear, so no
+///   further tractor beams could ever start.
+/// * The beam is up but no ship is caught in it (the frozen player was
+///   destroyed by a bullet or diver, or was mid-respawn when the beam opened).
+///   `player_capture_system` needs a frozen player, so the Boss would hover
+///   at the stop point forever.  Send it home instead.
+pub fn tractor_beam_watchdog(
+    mut commands: Commands,
+    mut coordinator: ResMut<TractorBeamCoordinator>,
+    boss_query: Query<
+        (Entity, &Transform, &FormationSlot, Has<TractorBeamSpawned>),
+        With<TractorBeamRun>,
+    >,
+    mut frozen_query: Query<(Entity, &mut Sprite), (With<PlayerShip>, With<PlayerFrozen>)>,
+) {
+    if boss_query.is_empty() {
+        coordinator.active = false;
+        for (player_entity, mut sprite) in &mut frozen_query {
+            sprite.color = Color::WHITE;
+            commands.entity(player_entity).remove::<PlayerFrozen>();
+        }
+        return;
+    }
+
+    if !frozen_query.is_empty() {
+        return;
+    }
+
+    for (boss_entity, transform, slot, beam_spawned) in &boss_query {
+        if !beam_spawned {
+            continue; // still flying to the stop point
+        }
+        commands
+            .entity(boss_entity)
+            .despawn_related::<Children>()
+            .remove::<TractorBeamRun>()
+            .remove::<TractorBeamSpawned>()
+            .insert(DivePath(vec![transform.translation.truncate(), slot.home_pos]))
+            .insert(DivePathProgress { current_waypoint: 1 });
+        coordinator.active = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::RunSystemOnce;
+
+    use super::*;
+    use crate::enemies::dive_paths::TRACTOR_BEAM_STOP_Y;
+
+    fn world_with_active_beam() -> World {
+        let mut world = World::new();
+        let mut coordinator = TractorBeamCoordinator::default();
+        coordinator.active = true;
+        world.insert_resource(coordinator);
+        world
+    }
+
+    #[test]
+    fn boss_killed_mid_beam_unfreezes_player() {
+        let mut world = world_with_active_beam();
+        let player = world
+            .spawn((PlayerShip, PlayerFrozen, Sprite { color: Color::srgb(1.0, 0.3, 0.3), ..default() }))
+            .id();
+
+        world.run_system_once(tractor_beam_watchdog).unwrap();
+
+        assert!(!world.resource::<TractorBeamCoordinator>().active);
+        assert!(world.get::<PlayerFrozen>(player).is_none());
+        assert_eq!(world.get::<Sprite>(player).unwrap().color, Color::WHITE);
+    }
+
+    #[test]
+    fn beam_without_captive_sends_boss_home() {
+        let mut world = world_with_active_beam();
+        let home = Vec2::new(8.0, 80.0);
+        let boss = world
+            .spawn((
+                Transform::from_xyz(0.0, TRACTOR_BEAM_STOP_Y, 0.0),
+                FormationSlot { row: 0, col: 1, home_pos: home },
+                TractorBeamRun,
+                TractorBeamSpawned,
+            ))
+            .id();
+
+        world.run_system_once(tractor_beam_watchdog).unwrap();
+
+        assert!(!world.resource::<TractorBeamCoordinator>().active);
+        assert!(world.get::<TractorBeamRun>(boss).is_none());
+        assert_eq!(world.get::<DivePath>(boss).unwrap().0.last(), Some(&home));
+    }
+
+    #[test]
+    fn boss_still_approaching_is_left_alone() {
+        let mut world = world_with_active_beam();
+        let boss = world
+            .spawn((
+                Transform::default(),
+                FormationSlot { row: 0, col: 1, home_pos: Vec2::ZERO },
+                TractorBeamRun,
+            ))
+            .id();
+
+        world.run_system_once(tractor_beam_watchdog).unwrap();
+
+        assert!(world.resource::<TractorBeamCoordinator>().active);
+        assert!(world.get::<TractorBeamRun>(boss).is_some());
+    }
 }
