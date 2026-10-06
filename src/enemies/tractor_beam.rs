@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::components::{
-    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DivePath, DivePathProgress,
+    Bullet, BulletOwner, CapturedBy, CapturedShip, Collider, DivePath, DivePathProgress, Dying,
     EnemyState, EnemyType, FormationSlot, PlayerFrozen, PlayerShip, TractorBeam, TractorBeamRun,
     TractorBeamSpawned,
 };
@@ -118,11 +118,10 @@ pub fn boss_tractor_decision(
 /// Each segment carries a `TractorBeam` component with an independent
 /// `pulse_phase` so the segments ripple slightly out of sync.
 ///
-/// The player ship receives `PlayerFrozen` to lock horizontal movement for
-/// the duration of the capture sequence.
+/// The beam stays open for `TRACTOR_BEAM_DURATION_SECS`; `tractor_beam_catch_system`
+/// freezes the player only if they fly into it.
 pub fn spawn_tractor_beam_system(
     mut commands: Commands,
-    player_query: Query<Entity, With<PlayerShip>>,
     boss_query: Query<
         (Entity, &DivePath, &DivePathProgress),
         (With<TractorBeamRun>, Without<TractorBeamSpawned>),
@@ -134,7 +133,9 @@ pub fn spawn_tractor_beam_system(
         }
 
         // Mark the boss so this system doesn't re-run next frame.
-        commands.entity(boss_entity).insert(TractorBeamSpawned);
+        commands.entity(boss_entity).insert(TractorBeamSpawned {
+            timer: Timer::from_seconds(TRACTOR_BEAM_DURATION_SECS, TimerMode::Once),
+        });
 
         // Spawn three fan-segment sprites as children of the Boss so they
         // automatically inherit its world position.
@@ -180,12 +181,43 @@ pub fn spawn_tractor_beam_system(
             ));
         });
 
-        // Lock the player's horizontal movement during the beam sequence.
-        if let Ok(player_entity) = player_query.single() {
+        commands.trigger(GameAudioEvent::TractorBeamActivate);
+    }
+}
+
+// ── Catching the player ─────────────────────────────────────────────────────
+
+/// How long the beam stays open before the Boss gives up and flies home.
+const TRACTOR_BEAM_DURATION_SECS: f32 = 3.5;
+
+/// Horizontal distance from the Boss within which the player is caught.
+/// Roughly the width of the fan where it reaches the player's row.
+const TRACTOR_BEAM_CATCH_HALF_WIDTH: f32 = 20.0;
+
+/// Ticks the open beam and freezes the player if they are under it.
+///
+/// A ship outside the beam is free to keep moving and shooting; once the beam
+/// timer runs out without a catch, `tractor_beam_watchdog` sends the Boss home.
+pub fn tractor_beam_catch_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut boss_query: Query<(&Transform, &mut TractorBeamSpawned)>,
+    player_query: Query<(Entity, &Transform), (With<PlayerShip>, Without<PlayerFrozen>, Without<Dying>)>,
+    frozen_query: Query<(), With<PlayerFrozen>>,
+) {
+    for (boss_transform, mut beam) in &mut boss_query {
+        beam.timer.tick(time.delta());
+        if beam.timer.is_finished() || !frozen_query.is_empty() {
+            continue;
+        }
+        let Ok((player_entity, player_transform)) = player_query.single() else {
+            continue;
+        };
+        let dx = (player_transform.translation.x - boss_transform.translation.x).abs();
+        if dx <= TRACTOR_BEAM_CATCH_HALF_WIDTH {
+            // Lock the player's horizontal movement during the capture sequence.
             commands.entity(player_entity).insert(PlayerFrozen);
         }
-
-        commands.trigger(GameAudioEvent::TractorBeamActivate);
     }
 }
 
@@ -334,14 +366,14 @@ pub fn player_capture_system(
 ///   game, and `TractorBeamCoordinator::active` would never clear, so no
 ///   further tractor beams could ever start.
 /// * The beam is up but no ship is caught in it (the frozen player was
-///   destroyed by a bullet or diver, or was mid-respawn when the beam opened).
+///   destroyed by a bullet or diver, or simply stayed out of the beam).
 ///   `player_capture_system` needs a frozen player, so the Boss would hover
-///   at the stop point forever.  Send it home instead.
+///   at the stop point forever.  Once the beam times out, send it home.
 pub fn tractor_beam_watchdog(
     mut commands: Commands,
     mut coordinator: ResMut<TractorBeamCoordinator>,
     boss_query: Query<
-        (Entity, &Transform, &FormationSlot, Has<TractorBeamSpawned>),
+        (Entity, &Transform, &FormationSlot, Option<&TractorBeamSpawned>),
         With<TractorBeamRun>,
     >,
     mut frozen_query: Query<(Entity, &mut Sprite), (With<PlayerShip>, With<PlayerFrozen>)>,
@@ -359,9 +391,10 @@ pub fn tractor_beam_watchdog(
         return;
     }
 
-    for (boss_entity, transform, slot, beam_spawned) in &boss_query {
-        if !beam_spawned {
-            continue; // still flying to the stop point
+    for (boss_entity, transform, slot, beam) in &boss_query {
+        // Still flying to the stop point, or the beam is still open.
+        if !beam.is_some_and(|b| b.timer.is_finished()) {
+            continue;
         }
         commands
             .entity(boss_entity)
@@ -380,6 +413,12 @@ mod tests {
 
     use super::*;
     use crate::enemies::dive_paths::TRACTOR_BEAM_STOP_Y;
+
+    fn expired_beam() -> TractorBeamSpawned {
+        let mut timer = Timer::from_seconds(TRACTOR_BEAM_DURATION_SECS, TimerMode::Once);
+        timer.finish();
+        TractorBeamSpawned { timer }
+    }
 
     fn world_with_active_beam() -> World {
         let mut world = World::new();
@@ -404,7 +443,27 @@ mod tests {
     }
 
     #[test]
-    fn beam_without_captive_sends_boss_home() {
+    fn open_beam_without_captive_keeps_waiting() {
+        let mut world = world_with_active_beam();
+        let boss = world
+            .spawn((
+                Transform::from_xyz(0.0, TRACTOR_BEAM_STOP_Y, 0.0),
+                FormationSlot { row: 0, col: 1, home_pos: Vec2::ZERO },
+                TractorBeamRun,
+                TractorBeamSpawned {
+                    timer: Timer::from_seconds(TRACTOR_BEAM_DURATION_SECS, TimerMode::Once),
+                },
+            ))
+            .id();
+
+        world.run_system_once(tractor_beam_watchdog).unwrap();
+
+        assert!(world.resource::<TractorBeamCoordinator>().active);
+        assert!(world.get::<TractorBeamRun>(boss).is_some());
+    }
+
+    #[test]
+    fn beam_timeout_without_captive_sends_boss_home() {
         let mut world = world_with_active_beam();
         let home = Vec2::new(8.0, 80.0);
         let boss = world
@@ -412,7 +471,7 @@ mod tests {
                 Transform::from_xyz(0.0, TRACTOR_BEAM_STOP_Y, 0.0),
                 FormationSlot { row: 0, col: 1, home_pos: home },
                 TractorBeamRun,
-                TractorBeamSpawned,
+                expired_beam(),
             ))
             .id();
 

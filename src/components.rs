@@ -156,10 +156,13 @@ pub struct EnemyFireCooldown(pub Timer);
 #[derive(Component)]
 pub struct TractorBeamRun;
 
-/// Marker inserted on the Boss once its tractor-beam visual has been spawned.
-/// Prevents `spawn_tractor_beam_system` from re-spawning the beam every frame.
+/// Inserted on the Boss once its tractor-beam visual has been spawned.
+/// Prevents `spawn_tractor_beam_system` from re-spawning the beam every frame,
+/// and times how long the beam stays open before the Boss gives up.
 #[derive(Component)]
-pub struct TractorBeamSpawned;
+pub struct TractorBeamSpawned {
+    pub timer: Timer,
+}
 
 /// Component on each fan-segment sprite that makes up the tractor beam visual.
 /// Drives the pulsing alpha animation independently per segment.
