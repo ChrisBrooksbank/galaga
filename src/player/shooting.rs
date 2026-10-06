@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
 use crate::assets::GameAssets;
-use crate::components::{Bullet, BulletOwner, Collider, DualFighter, FireCooldown, PlayerShip, Velocity};
+use crate::components::{
+    Bullet, BulletOwner, Collider, DualFighter, FireCooldown, PlayerFrozen, PlayerShip, Velocity,
+};
 use crate::constants::{LOGICAL_HEIGHT, LOGICAL_WIDTH, MAX_DUAL_BULLETS, MAX_PLAYER_BULLETS, PLAYER_BULLET_SPEED};
 use crate::resources::DualFighterState;
 use crate::GameAudioEvent;
@@ -15,7 +17,8 @@ pub fn player_shoot(
     mut commands: Commands,
     game_assets: Res<GameAssets>,
     dual_state: Res<DualFighterState>,
-    mut player_query: Query<(&Transform, &mut FireCooldown), With<PlayerShip>>,
+    // A ship caught in a tractor beam can't fire, as in the arcade.
+    mut player_query: Query<(&Transform, &mut FireCooldown), (With<PlayerShip>, Without<PlayerFrozen>)>,
     dual_query: Query<&Transform, With<DualFighter>>,
     bullet_query: Query<&Bullet>,
 ) {

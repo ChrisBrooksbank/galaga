@@ -93,6 +93,7 @@ fn main() {
         .init_resource::<StageIntroTimer>()
         .init_resource::<VolumeSettings>()
         .init_resource::<PauseSelection>()
+        .init_resource::<PausedFrom>()
         .add_observer(handle_audio_events)
         .add_observer(handle_score_event)
         .add_observer(handle_splitter_bee_killed)
@@ -151,8 +152,12 @@ fn main() {
         .add_systems(OnEnter(GameState::GameOver), spawn_game_over)
         .add_systems(OnExit(GameState::GameOver), despawn_game_over)
         .add_systems(Update, game_over_input.run_if(in_state(GameState::GameOver)))
-        // Playing → Paused on Escape
-        .add_systems(Update, toggle_pause.run_if(in_state(GameState::Playing)))
+        // Playing / ChallengingStage → Paused on Escape
+        .add_systems(
+            Update,
+            toggle_pause
+                .run_if(in_state(GameState::Playing).or(in_state(GameState::ChallengingStage))),
+        )
         // Paused: spawn/despawn pause menu, handle input, update labels
         .add_systems(OnEnter(GameState::Paused), spawn_pause_menu)
         .add_systems(OnExit(GameState::Paused), despawn_pause_menu)
@@ -266,8 +271,9 @@ fn main() {
                 ),
         )
         // Challenging stage: initialise on entry, spawn patterns and check completion each frame
+        // Only on arrival from Playing: resuming from Paused must not restart the stage.
         .add_systems(
-            OnEnter(GameState::ChallengingStage),
+            OnTransition { exited: GameState::Playing, entered: GameState::ChallengingStage },
             enter_challenging_stage,
         )
         .add_systems(
@@ -363,15 +369,30 @@ fn cleanup_gameplay_entities(
     *intro_timer = StageIntroTimer::default();
 }
 
+/// The state that was active when the game was paused, so Escape resumes
+/// the right one (a regular stage or a challenging stage).
+#[derive(Resource)]
+struct PausedFrom(GameState);
+
+impl Default for PausedFrom {
+    fn default() -> Self {
+        Self(GameState::Playing)
+    }
+}
+
 fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
     state: Res<State<GameState>>,
+    mut paused_from: ResMut<PausedFrom>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
         match state.get() {
-            GameState::Playing => next_state.set(GameState::Paused),
-            GameState::Paused => next_state.set(GameState::Playing),
+            GameState::Playing | GameState::ChallengingStage => {
+                paused_from.0 = state.get().clone();
+                next_state.set(GameState::Paused);
+            }
+            GameState::Paused => next_state.set(paused_from.0.clone()),
             _ => {}
         }
     }

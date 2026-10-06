@@ -206,7 +206,10 @@ pub fn add_music_systems(app: &mut App) {
             OnTransition { exited: GameState::ChallengingStage, entered: GameState::Playing },
             music_on_enter_playing,
         )
-        .add_systems(OnEnter(GameState::ChallengingStage), music_on_enter_challenging)
+        .add_systems(
+            OnTransition { exited: GameState::Playing, entered: GameState::ChallengingStage },
+            music_on_enter_challenging,
+        )
         .add_systems(OnEnter(GameState::GameOver), music_on_enter_game_over)
         .add_systems(OnEnter(GameState::Paused), music_on_enter_paused)
         .add_systems(OnExit(GameState::Paused), music_on_exit_paused)
